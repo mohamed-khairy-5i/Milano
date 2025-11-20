@@ -9,7 +9,7 @@ interface StockProps {
 }
 
 const Stock: React.FC<StockProps> = ({ isRTL }) => {
-  const { products, updateProduct } = useData();
+  const { products, updateProduct, currency } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
@@ -58,7 +58,12 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
   };
 
   const formatCurrency = (val: number) => {
-    return `${val.toLocaleString()} ريال يمني`;
+    const currencyLabels: Record<string, string> = {
+        'YER': isRTL ? 'ريال يمني' : 'YER',
+        'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+        'USD': isRTL ? 'دولار' : 'USD',
+    };
+    return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };
 
   return (

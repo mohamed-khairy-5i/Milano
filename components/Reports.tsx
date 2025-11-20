@@ -22,7 +22,7 @@ interface ReportsProps {
 }
 
 const Reports: React.FC<ReportsProps> = ({ isRTL }) => {
-  const { invoices, expenses } = useData();
+  const { invoices, expenses, currency } = useData();
 
   // Real Calculations
   const totalSales = invoices
@@ -43,6 +43,13 @@ const Reports: React.FC<ReportsProps> = ({ isRTL }) => {
       maximumFractionDigits: 0
     }).format(val);
   };
+
+  const currencyLabels: Record<string, string> = {
+      'YER': isRTL ? 'ريال يمني' : 'YER',
+      'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+      'USD': isRTL ? 'دولار' : 'USD',
+  };
+  const currencyLabel = currencyLabels[currency];
 
   // Generate Chart Data (Last 7 days dynamic)
   const generateChartData = () => {
@@ -121,7 +128,7 @@ const Reports: React.FC<ReportsProps> = ({ isRTL }) => {
                         <p className="text-xs opacity-75 mb-2">{card.subtitle}</p>
                         <div className="text-3xl font-bold flex items-baseline gap-1">
                             {formatCurrency(card.amount)}
-                            <span className="text-base font-normal opacity-80">{isRTL ? 'ريال' : 'YER'}</span>
+                            <span className="text-base font-normal opacity-80">{currencyLabel}</span>
                         </div>
                     </div>
                 </div>

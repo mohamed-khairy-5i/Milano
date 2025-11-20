@@ -21,7 +21,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
-  const { products, invoices } = useData();
+  const { products, invoices, currency } = useData();
 
   // Calculations
   const totalSales = invoices
@@ -41,6 +41,13 @@ const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
       maximumFractionDigits: 0
     }).format(val);
   };
+
+  const currencyLabels: Record<string, string> = {
+      'YER': isRTL ? 'ريال يمني' : 'YER',
+      'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+      'USD': isRTL ? 'دولار' : 'USD',
+  };
+  const currencyLabel = currencyLabels[currency];
 
   // Generate Chart Data (Last 7 days)
   const generateChartData = () => {
@@ -97,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
              <div className="mt-auto">
                  <div className="text-3xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
                      {formatCurrency(totalSales)} 
-                     <span className="text-lg font-normal text-gray-500">{isRTL ? 'ريال يمني' : 'YER'}</span>
+                     <span className="text-lg font-normal text-gray-500">{currencyLabel}</span>
                  </div>
                  <p className="text-sm text-gray-400 mt-1">
                      {salesCount} {isRTL ? 'فاتورة' : 'Invoices'}
@@ -118,7 +125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
              <div className="mt-auto">
                  <div className="text-3xl font-bold text-gray-900 dark:text-white flex items-baseline gap-2">
                      {formatCurrency(inventoryValue)} 
-                     <span className="text-lg font-normal text-gray-500">{isRTL ? 'ريال يمني' : 'YER'}</span>
+                     <span className="text-lg font-normal text-gray-500">{currencyLabel}</span>
                  </div>
                  <p className="text-sm text-gray-400 mt-1">
                      {productCount} {isRTL ? 'منتج' : 'Products'}

@@ -10,7 +10,7 @@ interface ExpensesProps {
 }
 
 const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
-  const { expenses, addExpense, updateExpense, deleteExpense } = useData();
+  const { expenses, addExpense, updateExpense, deleteExpense, currency } = useData();
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,6 +18,13 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const currencyLabels: Record<string, string> = {
+      'YER': isRTL ? 'ريال يمني' : 'YER',
+      'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+      'USD': isRTL ? 'دولار' : 'USD',
+  };
+  const currencyLabel = currencyLabels[currency];
 
   const handleOpenAdd = () => {
     setCurrentExpense({
@@ -62,7 +69,10 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'إجمالي المصروفات' : 'Total Expenses'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${totalExpenses}</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
+                        {totalExpenses.toLocaleString()}
+                        <span className="text-sm font-normal text-gray-500">{currencyLabel}</span>
+                    </h3>
                 </div>
                 <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg text-expense">
                     <DollarSign size={24} />
@@ -73,7 +83,10 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
              <div className="flex justify-between items-start">
                 <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'مصروفات هذا الشهر' : 'This Month'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">$450</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
+                        450
+                        <span className="text-sm font-normal text-gray-500">{currencyLabel}</span>
+                    </h3>
                 </div>
                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
                     <Calendar size={24} />
@@ -131,7 +144,9 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                                 </span>
                             </td>
                             <td className="px-6 py-4">{expense.date}</td>
-                            <td className="px-6 py-4 font-bold text-expense">${expense.amount}</td>
+                            <td className="px-6 py-4 font-bold text-expense">
+                                {expense.amount.toLocaleString()} {currencyLabel}
+                            </td>
                             <td className="px-6 py-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                     <button 

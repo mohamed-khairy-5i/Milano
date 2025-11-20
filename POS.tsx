@@ -9,10 +9,17 @@ interface POSProps {
 }
 
 const POS: React.FC<POSProps> = ({ isRTL }) => {
-  const { products } = useData();
+  const { products, currency } = useData();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
+  const currencyLabels: Record<string, string> = {
+      'YER': isRTL ? 'ريال يمني' : 'YER',
+      'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+      'USD': isRTL ? 'دولار' : 'USD',
+  };
+  const currencyLabel = currencyLabels[currency];
 
   // Sync filtered products with actual products when they change or search changes
   useEffect(() => {
@@ -103,7 +110,10 @@ const POS: React.FC<POSProps> = ({ isRTL }) => {
                         <h3 className="font-semibold text-gray-800 dark:text-gray-200 truncate">{product.name}</h3>
                         <div className="flex justify-between items-center mt-2">
                             <span className="text-sm text-gray-500 dark:text-gray-400">{product.code}</span>
-                            <span className="font-bold text-primary">{product.priceSell}</span>
+                            <span className="font-bold text-primary text-sm flex items-center gap-1">
+                                {product.priceSell.toLocaleString()}
+                                <span className="text-[10px] font-normal">{currencyLabel}</span>
+                            </span>
                         </div>
                     </div>
                 ))}
@@ -139,7 +149,9 @@ const POS: React.FC<POSProps> = ({ isRTL }) => {
                     <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700">
                         <div className="flex-1">
                             <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.name}</h4>
-                            <div className="text-xs text-gray-500 mt-1">{item.priceSell} x {item.quantity}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                                {item.priceSell.toLocaleString()} {currencyLabel} x {item.quantity}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <button onClick={() => updateQuantity(item.id, -1)} className="p-1 bg-white dark:bg-gray-700 rounded-md shadow-sm hover:text-red-500">
@@ -163,15 +175,15 @@ const POS: React.FC<POSProps> = ({ isRTL }) => {
             <div className="space-y-2 text-sm mb-4">
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>{isRTL ? 'المجموع الفرعي' : 'Subtotal'}</span>
-                    <span>{subTotal.toLocaleString()}</span>
+                    <span>{subTotal.toLocaleString()} {currencyLabel}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>{isRTL ? 'الضريبة (0%)' : 'Tax (0%)'}</span>
-                    <span>{tax.toLocaleString()}</span>
+                    <span>{tax.toLocaleString()} {currencyLabel}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
                     <span>{isRTL ? 'الإجمالي' : 'Total'}</span>
-                    <span>{total.toLocaleString()}</span>
+                    <span>{total.toLocaleString()} {currencyLabel}</span>
                 </div>
             </div>
 
