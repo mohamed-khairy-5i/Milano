@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Eye, Trash2, Printer, Filter } from 'lucide-react';
 import { Invoice } from '../types';
@@ -50,7 +49,8 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
   const availableContacts = contacts.filter(c => c.type === (type === 'sale' ? 'customer' : 'supplier'));
 
   const formatCurrency = (val: number) => {
-    return `${val.toLocaleString()} ريال يمني`;
+    const num = val || 0;
+    return `${num.toLocaleString()} ريال يمني`;
   };
 
   const handleAddLineItem = () => {
@@ -154,10 +154,10 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                             {formatCurrency(invoice.total)}
                         </td>
                         <td className="px-6 py-4 text-end text-green-600 font-medium">
-                             {formatCurrency(invoice.paidAmount || 0)}
+                             {formatCurrency(invoice.paidAmount)}
                         </td>
                         <td className="px-6 py-4 text-end text-red-600 font-medium">
-                             {formatCurrency(invoice.remainingAmount || 0)}
+                             {formatCurrency(invoice.remainingAmount)}
                         </td>
                         <td className="px-6 py-4 text-center">
                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium
