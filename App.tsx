@@ -12,14 +12,22 @@ import Stock from './components/Stock';
 import Bonds from './components/Bonds';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
+import Login from './Login';
 import { ViewState } from './types';
+import { useData, Currency } from './DataContext';
 
 const App: React.FC = () => {
+  const { currency, setCurrency } = useData();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // For mobile
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // For desktop collapse
+  
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('milano_auth') === 'true';
+  });
 
   // Initialize theme and direction
   useEffect(() => {
@@ -37,6 +45,16 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
   const toggleLang = () => setIsRTL(!isRTL);
+
+  const handleLogin = () => {
+    localStorage.setItem('milano_auth', 'true');
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.setItem('milano_auth', 'false');
+    setIsAuthenticated(false);
+  };
 
   const renderContent = () => {
     switch (activeView) {
@@ -66,6 +84,10 @@ const App: React.FC = () => {
         return <Dashboard isRTL={isRTL} />;
     }
   };
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} isRTL={isRTL} />;
+  }
 
   return (
     <div className={`flex h-screen w-full font-${isRTL ? 'cairo' : 'sans'} bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden`}>
@@ -108,22 +130,28 @@ const App: React.FC = () => {
             >
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            {/* User greeting matching screenshot */}
             <h2 className="text-xl font-bold text-gray-800 dark:text-white hidden md:block">
-                {isRTL ? 'مرحباً' : 'Welcome'}
+                {isRTL ? 'مرحباً بك' : 'Welcome'}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-             {/* System Title matching screenshot right side */}
-             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                {isRTL ? 'نظام المحاسبة' : 'Accounting System'}
-            </h1>
+          <div className="flex items-center gap-3 md:gap-4">
+             {/* Currency Selector */}
+             <select 
+               value={currency}
+               onChange={(e) => setCurrency(e.target.value as Currency)}
+               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+             >
+               <option value="YER">{isRTL ? 'ريال يمني' : 'YER'}</option>
+               <option value="SAR">{isRTL ? 'ريال سعودي' : 'SAR'}</option>
+               <option value="USD">{isRTL ? 'دولار أمريكي' : 'USD'}</option>
+             </select>
 
              {/* Icons */}
             <button 
               onClick={toggleLang}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600"
+              title={isRTL ? 'Switch to English' : 'التحويل للعربية'}
             >
               <Globe size={20} />
             </button>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Save } from 'lucide-react';
+import { Plus, Save, Search, Trash2, Edit } from 'lucide-react';
 import { useData } from '../DataContext';
 import { Contact } from '../types';
 import Modal from './Modal';
@@ -11,7 +11,8 @@ interface ContactsProps {
 }
 
 const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
-  const { contacts, addContact, updateContact, deleteContact } = useData();
+  const { contacts, addContact, updateContact, deleteContact, currency } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,7 +22,11 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
   const title = type === 'customer' ? (isRTL ? 'العملاء' : 'Customers') : (isRTL ? 'الموردين' : 'Suppliers');
   const addLabel = type === 'customer' ? (isRTL ? 'إنشاء عميل' : 'Create Client') : (isRTL ? 'إنشاء مورد' : 'Create Supplier');
 
-  const filteredContacts = contacts.filter(c => c.type === type);
+  const filteredContacts = contacts.filter(c => 
+    c.type === type && 
+    (c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     c.phone.includes(searchTerm))
+  );
 
   const handleOpenAdd = () => {
     setCurrentContact({
@@ -40,10 +45,18 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (contact: Contact) => {
+  const handleOpenEdit = (contact: Contact, e: React.MouseEvent) => {
+    e.stopPropagation();
     setCurrentContact({ ...contact });
     setIsEditing(true);
     setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm(isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure you want to delete?')) {
+        deleteContact(id);
+    }
   };
 
   const handleSave = () => {
@@ -58,28 +71,48 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
   };
 
   const formatCurrency = (val: number) => {
-    // Match the screenshot format "0 ريال يمني"
-    return isRTL ? `${val} ريال يمني` : `${val} YER`;
+    const currencyLabels: Record<string, string> = {
+        'YER': isRTL ? 'ريال يمني' : 'YER',
+        'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+        'USD': isRTL ? 'دولار' : 'USD',
+    };
+    return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
-       {/* Header Actions matching screenshot - Title on right, Button on left */}
-       <div className="mb-6 flex flex-row justify-between items-center">
+       {/* Header Actions */}
+       <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
            {title}
         </h2>
 
-        <button 
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold"
-        >
-            <Plus size={18} />
-            <span>{addLabel}</span>
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative flex-1 sm:flex-none">
+                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                    <Search size={18} />
+                </div>
+                <input 
+                    type="text" 
+                    className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                    placeholder={isRTL ? "بحث بالاسم أو الهاتف..." : "Search name or phone..."}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            <button 
+                onClick={handleOpenAdd}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <Plus size={18} />
+                <span>{addLabel}</span>
+            </button>
+        </div>
       </div>
 
-      {/* Clean Table matching screenshot */}
+      {/* Clean Table */}
       <div className="flex-1 overflow-auto border border-gray-100 dark:border-gray-700 rounded-lg">
             <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
                 <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold">
@@ -91,11 +124,12 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                         {type === 'customer' && (
                             <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'حد الائتمان' : 'Credit Limit'}</th>
                         )}
+                        <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
                     {filteredContacts.map((contact) => (
-                        <tr key={contact.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group" onClick={() => handleOpenEdit(contact)}>
+                        <tr key={contact.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                                 {contact.name}
                             </td>
@@ -105,7 +139,7 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                             <td className="px-6 py-4 text-gray-500 text-end">
                                 {contact.email || '-'}
                             </td>
-                            <td className="px-6 py-4 text-gray-500 text-end">
+                            <td className="px-6 py-4 text-gray-500 text-end font-bold dir-ltr">
                                 {formatCurrency(contact.balance)}
                             </td>
                             {type === 'customer' && (
@@ -113,11 +147,29 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                                     {formatCurrency(contact.creditLimit || 0)}
                                 </td>
                             )}
+                            <td className="px-6 py-4 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                    <button 
+                                        onClick={(e) => handleOpenEdit(contact, e)}
+                                        className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
+                                        title={isRTL ? 'تعديل' : 'Edit'}
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => handleDelete(contact.id, e)}
+                                        className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
+                                        title={isRTL ? 'حذف' : 'Delete'}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                     ))}
                     {filteredContacts.length === 0 && (
                         <tr>
-                            <td colSpan={type === 'customer' ? 5 : 4} className="px-6 py-8 text-center text-gray-400">
+                            <td colSpan={type === 'customer' ? 6 : 5} className="px-6 py-8 text-center text-gray-400">
                                 {isRTL ? 'لا توجد بيانات' : 'No data'}
                             </td>
                         </tr>
@@ -143,7 +195,7 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
         }
       >
         <div className="space-y-4">
-            {/* Row 1: Name and Phone */}
+            {/* Form fields - Same as before */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -169,7 +221,6 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                 </div>
             </div>
 
-            {/* Row 2: Email and Tax Number */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -195,7 +246,6 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                 </div>
             </div>
 
-            {/* Row 3: Credit Limit (Customers Only) */}
             {type === 'customer' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -209,13 +259,9 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                             className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                         />
                     </div>
-                    <div>
-                        {/* Spacer to maintain grid layout if needed */}
-                    </div>
                 </div>
             )}
 
-            {/* Row 4: Address (Full Width) */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {isRTL ? 'العنوان' : 'Address'}
@@ -228,7 +274,6 @@ const Contacts: React.FC<ContactsProps> = ({ isRTL, type }) => {
                 />
             </div>
 
-            {/* Row 5: Notes (Full Width) */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {isRTL ? 'ملاحظات' : 'Notes'}

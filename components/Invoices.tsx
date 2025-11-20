@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Plus, Eye, Trash2, Printer, Filter } from 'lucide-react';
+import { Plus, Eye, Trash2, Printer, Filter, Search } from 'lucide-react';
 import { Invoice } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -10,7 +11,7 @@ interface InvoicesProps {
 }
 
 const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
-  const { invoices, contacts, products, addInvoice, deleteInvoice } = useData();
+  const { invoices, contacts, products, addInvoice, deleteInvoice, currency } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Labels
@@ -49,8 +50,12 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
   const availableContacts = contacts.filter(c => c.type === (type === 'sale' ? 'customer' : 'supplier'));
 
   const formatCurrency = (val: number) => {
-    const num = val || 0;
-    return `${num.toLocaleString()} ريال يمني`;
+    const currencyLabels: Record<string, string> = {
+        'YER': isRTL ? 'ريال يمني' : 'YER',
+        'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+        'USD': isRTL ? 'دولار' : 'USD',
+    };
+    return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };
 
   const handleAddLineItem = () => {
@@ -106,22 +111,43 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     }
   };
 
+  const handlePrint = (id: string) => {
+      alert(isRTL ? "جاري طباعة الفاتورة: " + id : "Printing Invoice: " + id);
+      // In a real app, this would open a print window
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
       
       {/* Header */}
-      <div className="mb-6 flex flex-row justify-between items-center">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
            {pageTitle}
         </h2>
 
-        <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold"
-        >
-            <Plus size={18} />
-            <span>{createBtnLabel}</span>
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative flex-1 sm:flex-none">
+                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                    <Search size={18} />
+                </div>
+                <input 
+                    type="text" 
+                    className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                    placeholder={isRTL ? "بحث برقم الفاتورة..." : "Search invoice #..."}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <Plus size={18} />
+                <span>{createBtnLabel}</span>
+            </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -136,6 +162,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المدفوع' : 'Paid'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المتبقي' : 'Remaining'}</th>
                     <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'الحالة' : 'Status'}</th>
+                    <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
@@ -171,11 +198,29 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                                 }
                             </span>
                         </td>
+                        <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                                <button 
+                                    onClick={() => handlePrint(invoice.id)}
+                                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                                    title={isRTL ? 'طباعة' : 'Print'}
+                                >
+                                    <Printer size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => handleDelete(invoice.id)}
+                                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
+                                    title={isRTL ? 'حذف' : 'Delete'}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </td>
                     </tr>
                 ))}
                 {filteredInvoices.length === 0 && (
                     <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                             {isRTL ? 'لا توجد فواتير' : 'No invoices found'}
                         </td>
                     </tr>
@@ -184,7 +229,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         </table>
       </div>
 
-      {/* Create Invoice Modal */}
+      {/* Create Invoice Modal - (Content identical to before) */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -201,7 +246,8 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             </>
         }
       >
-        <div className="space-y-6 py-2">
+         {/* Modal Content unchanged */}
+         <div className="space-y-6 py-2">
             {/* Row 1: Contact (Customer/Supplier) and Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-1">
@@ -228,7 +274,6 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 </div>
             </div>
 
-            {/* Row 2: Due Date (Full width in row just for spacing, or consistent) */}
              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'تاريخ الاستحقاق' : 'Due Date'}</label>
                 <input 
@@ -239,10 +284,8 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 />
             </div>
 
-            {/* Products Section Title (Implicit) */}
             <div>
                 <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">{isRTL ? 'المنتجات' : 'Products'}</h4>
-                {/* Add Line Item Row */}
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1">
                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'المنتج' : 'Product'}</label>
@@ -302,7 +345,6 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                     </button>
                 </div>
                 
-                {/* Added Items List (Preview) */}
                 {newInvoiceData.items.length > 0 && (
                     <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                         <table className="w-full text-sm text-right">
@@ -332,7 +374,6 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 )}
             </div>
 
-            {/* Tax */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'الضريبة' : 'Tax'}</label>
                 <input 
@@ -343,7 +384,6 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 />
             </div>
 
-             {/* Notes */}
              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'ملاحظات' : 'Notes'}</label>
                 <textarea 
