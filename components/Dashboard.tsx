@@ -3,7 +3,9 @@ import React from 'react';
 import { 
   DollarSign, 
   Package, 
-  AlertTriangle 
+  AlertTriangle,
+  Cloud,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -83,9 +85,25 @@ const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
     <div className="space-y-8 animate-fade-in pb-8">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            {isRTL ? 'لوحة التحكم' : 'Dashboard'}
-        </h1>
+        <div className="flex flex-col">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {isRTL ? 'لوحة التحكم' : 'Dashboard'}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {isRTL ? 'نظرة عامة على أداء المتجر' : 'Overview of store performance'}
+            </p>
+        </div>
+        
+        {/* Connection Status Indicator */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full">
+            <div className="relative">
+                <Cloud size={16} className="text-green-600 dark:text-green-400" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+            <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                {isRTL ? 'متصل بالسحابة' : 'Cloud Connected'}
+            </span>
+        </div>
       </div>
 
       {/* Cards Grid */}

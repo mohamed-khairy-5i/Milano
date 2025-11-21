@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check, Trash2 } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw } from 'lucide-react';
 import { useData } from '../DataContext';
 
 interface SettingsProps {
@@ -10,6 +10,7 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
   const { currency, setCurrency, resetData } = useData();
   const [activeTab, setActiveTab] = useState('general');
+  const [isResetting, setIsResetting] = useState(false);
 
   const tabs = [
     { id: 'general', label: isRTL ? 'عام' : 'General', icon: Building },
@@ -19,10 +20,18 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     { id: 'permissions', label: isRTL ? 'الصلاحيات' : 'Permissions', icon: Shield },
   ];
 
-  const handleClearData = () => {
+  const handleClearData = async () => {
       if (confirm(isRTL ? 'تحذير: سيتم حذف جميع البيانات (المنتجات، العملاء، الفواتير) والعودة لحالة المصنع. هل أنت متأكد؟' : 'WARNING: This will delete ALL data (Products, Clients, Invoices) and reset to factory settings. Are you sure?')) {
-          resetData();
-          alert(isRTL ? 'تم حذف البيانات بنجاح.' : 'Data cleared successfully.');
+          try {
+              setIsResetting(true);
+              await resetData();
+              alert(isRTL ? 'تم حذف البيانات بنجاح.' : 'Data cleared successfully.');
+          } catch (error) {
+              alert(isRTL ? 'حدث خطأ أثناء الحذف.' : 'Error clearing data.');
+              console.error(error);
+          } finally {
+              setIsResetting(false);
+          }
       }
   };
 
@@ -154,8 +163,10 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                     </div>
                     <button 
                         onClick={handleClearData}
-                        className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-bold"
+                        disabled={isResetting}
+                        className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-bold flex justify-center items-center gap-2"
                     >
+                        {isResetting && <RefreshCw size={16} className="animate-spin" />}
                         {isRTL ? 'حذف البيانات (ضبط المصنع)' : 'Factory Reset'}
                     </button>
                 </div>

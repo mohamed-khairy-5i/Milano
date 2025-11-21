@@ -11,6 +11,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
   const { validateUser, registerUser } = useData();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Form State
   const [name, setName] = useState('');
@@ -20,48 +21,60 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setIsLoading(true);
 
-    if (isRegistering) {
-        // Register Logic
-        if (!name || !username || !password || !confirmPassword) {
-            setError(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
-            return;
-        }
-        if (password !== confirmPassword) {
-            setError(isRTL ? 'كلمات المرور غير متطابقة' : 'Passwords do not match');
-            return;
-        }
+    try {
+      if (isRegistering) {
+          // Register Logic
+          if (!name || !username || !password || !confirmPassword) {
+              setError(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
+              setIsLoading(false);
+              return;
+          }
+          if (password !== confirmPassword) {
+              setError(isRTL ? 'كلمات المرور غير متطابقة' : 'Passwords do not match');
+              setIsLoading(false);
+              return;
+          }
 
-        const result = registerUser({
-            name,
-            username,
-            password,
-            role: 'user' // Default role
-        });
+          // Added await here to wait for Firebase response
+          const result = await registerUser({
+              name,
+              username,
+              password,
+              role: 'user' // Default role
+          });
 
-        if (result.success) {
-            setSuccessMsg(isRTL ? 'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.' : 'Account created successfully! You can login now.');
-            // Clear form and switch to login
-            setName('');
-            setUsername('');
-            setPassword('');
-            setConfirmPassword('');
-            setTimeout(() => setIsRegistering(false), 1500);
-        } else {
-            setError(isRTL ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists');
-        }
+          if (result.success) {
+              setSuccessMsg(isRTL ? 'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.' : 'Account created successfully! You can login now.');
+              // Clear form and switch to login
+              setName('');
+              setUsername('');
+              setPassword('');
+              setConfirmPassword('');
+              setTimeout(() => setIsRegistering(false), 1500);
+          } else {
+              setError(isRTL ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists');
+          }
 
-    } else {
-        // Login Logic
-        if (validateUser(username, password)) {
-            onLogin();
-        } else {
-            setError(isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password');
-        }
+      } else {
+          // Login Logic
+          // Validate user is synchronous because it checks the loaded array
+          if (validateUser(username, password)) {
+              onLogin();
+          } else {
+              setError(isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password');
+          }
+      }
+    } catch (err) {
+      console.error(err);
+      setError(isRTL ? 'حدث خطأ غير متوقع' : 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -179,12 +192,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md"
+              disabled={isLoading}
+              className={`w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {isRegistering 
-                ? <><UserPlus size={20} /> <span>{isRTL ? 'إنشاء الحساب' : 'Create Account'}</span></>
-                : <><LogIn size={20} /> <span>{isRTL ? 'دخول' : 'Sign In'}</span></>
-              }
+              {isLoading ? (
+                <span>{isRTL ? 'جاري المعالجة...' : 'Processing...'}</span>
+              ) : (
+                isRegistering 
+                  ? <><UserPlus size={20} /> <span>{isRTL ? 'إنشاء الحساب' : 'Create Account'}</span></>
+                  : <><LogIn size={20} /> <span>{isRTL ? 'دخول' : 'Sign In'}</span></>
+              )}
             </button>
           </form>
 
