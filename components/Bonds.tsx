@@ -73,8 +73,102 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     }
   };
 
-  const handlePrint = (id: string) => {
-    alert(isRTL ? "جاري طباعة السند: " + id : "Printing Bond: " + id);
+  const handlePrint = (bond: Bond) => {
+    const printWindow = window.open('', '_blank', 'width=900,height=600');
+    if (!printWindow) {
+        alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print');
+        return;
+    }
+
+    const currencySymbol = currency;
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const title = bond.type === 'receipt' 
+        ? (isRTL ? 'سند قبض' : 'RECEIPT VOUCHER') 
+        : (isRTL ? 'سند صرف' : 'PAYMENT VOUCHER');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${title} #${bond.number}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; background: #f0f0f0; padding: 20px; }
+              .bond-container { background: white; max-width: 800px; margin: 0 auto; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              .logo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+              .title { font-size: 24px; font-weight: bold; color: #444; background: #f3f4f6; display: inline-block; padding: 10px 30px; border-radius: 5px; border: 1px solid #e5e7eb; }
+              .content { margin-bottom: 40px; line-height: 2; font-size: 16px; }
+              .row { display: flex; margin-bottom: 15px; border-bottom: 1px dashed #ddd; padding-bottom: 5px; }
+              .label { font-weight: bold; width: 150px; color: #666; }
+              .value { flex: 1; font-weight: bold; color: #000; }
+              .amount-box { border: 2px solid #333; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; margin: 30px 0; background: #f9fafb; border-radius: 8px; }
+              .footer { display: flex; justify-content: space-between; margin-top: 80px; padding-top: 20px; }
+              .signature { text-align: center; width: 200px; border-top: 1px solid #ccc; padding-top: 10px; }
+              .print-btn { display: block; width: 100%; padding: 15px; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 20px; border-radius: 8px; }
+              .print-btn:hover { background: #1d4ed8; }
+              @media print {
+                  body { background: white; padding: 0; }
+                  .bond-container { box-shadow: none; padding: 20px; }
+                  .print-btn { display: none; }
+              }
+          </style>
+      </head>
+      <body>
+          <div class="bond-container">
+              <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save as PDF'}</button>
+              
+              <div class="header">
+                  <div class="logo">Milano Store</div>
+                  <div>Main Street, City Center | +967 777 000 000</div>
+              </div>
+
+              <div style="text-align: center; margin-bottom: 30px;">
+                  <div class="title">${title}</div>
+              </div>
+
+              <div class="content">
+                  <div class="row">
+                      <span class="label">${isRTL ? 'رقم السند' : 'Number'}:</span>
+                      <span class="value"># ${bond.number}</span>
+                      <span class="label">${isRTL ? 'التاريخ' : 'Date'}:</span>
+                      <span class="value">${bond.date}</span>
+                  </div>
+                  <div class="row">
+                      <span class="label">${isRTL ? (bond.type === 'receipt' ? 'استلمنا من' : 'صرفنا إلى') : (bond.type === 'receipt' ? 'Received From' : 'Paid To')}:</span>
+                      <span class="value">${bond.entityName}</span>
+                  </div>
+                  <div class="row">
+                      <span class="label">${isRTL ? 'طريقة الدفع' : 'Payment Method'}:</span>
+                      <span class="value">${isRTL ? (bond.paymentMethod === 'cash' ? 'نقدي' : 'تحويل بنكي') : bond.paymentMethod.toUpperCase()}</span>
+                  </div>
+                  ${bond.notes ? `
+                  <div class="row">
+                      <span class="label">${isRTL ? 'وذلك مقابل' : 'For'}:</span>
+                      <span class="value">${bond.notes}</span>
+                  </div>
+                  ` : ''}
+              </div>
+
+              <div class="amount-box">
+                  ${bond.amount.toLocaleString()} ${currencySymbol}
+              </div>
+
+              <div class="footer">
+                  <div class="signature">
+                      ${isRTL ? 'المحاسب' : 'Accountant'}
+                  </div>
+                  <div class="signature">
+                      ${isRTL ? 'المستلم' : 'Recipient'}
+                  </div>
+              </div>
+          </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const formatCurrency = (val: number) => {
@@ -172,7 +266,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                          <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
-                                    onClick={() => handlePrint(bond.id)}
+                                    onClick={() => handlePrint(bond)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
                                 >

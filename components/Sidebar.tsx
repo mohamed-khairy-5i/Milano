@@ -8,13 +8,13 @@ import {
   FileText, 
   Truck,
   LogOut,
-  BookOpen,
   Warehouse,
   BarChart3,
   ShoppingBag,
   ChevronRight,
   ChevronLeft,
-  Menu
+  Menu,
+  DollarSign
 } from 'lucide-react';
 import { ViewState } from '../types';
 
@@ -33,27 +33,27 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
     { id: 'customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users },
     { id: 'suppliers', label: isRTL ? 'الموردين' : 'Suppliers', icon: Truck },
     { id: 'inventory', label: isRTL ? 'المنتجات' : 'Products', icon: Package },
+    { id: 'stock', label: isRTL ? 'إدارة المخزون' : 'Stock Mgmt', icon: Warehouse },
     { id: 'invoices', label: isRTL ? 'المبيعات' : 'Sales', icon: ShoppingCart }, 
-    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag }, // New Icon
+    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag },
     { id: 'accounting', label: isRTL ? 'السندات' : 'Bonds', icon: FileText }, 
-    { id: 'expenses', label: isRTL ? 'المخزون' : 'Inventory', icon: Warehouse }, // New Icon
-    { id: 'reports', label: isRTL ? 'التقارير' : 'Reports', icon: BarChart3 }, // New Icon
+    { id: 'expenses', label: isRTL ? 'المصروفات' : 'Expenses', icon: DollarSign },
+    { id: 'reports', label: isRTL ? 'التقارير' : 'Reports', icon: BarChart3 },
   ];
 
-  // Helper to handle clicks, mapping some visual items to actual views
   const handleItemClick = (id: string) => {
     onChangeView(id as ViewState);
   };
 
   return (
-    <aside className={`h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-20 transition-all duration-300 font-cairo ${isCollapsed ? 'w-20' : 'w-64'}`}>
+    <aside className={`h-full flex flex-col z-20 transition-all duration-300 font-cairo ${isCollapsed ? 'w-20' : 'w-64'}`}>
       
       {/* Header & Toggle */}
-      <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-4'} border-b border-gray-200 dark:border-gray-700`}>
+      <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-4'} border-b border-gray-200 dark:border-gray-700 shrink-0`}>
         
-        {/* Left Side (Right in RTL) Group */}
+        {/* Left Side Group */}
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : ''}`}>
-             {/* Logo/Title */}
+             {/* Logo */}
             <div className="flex items-center gap-2 font-bold text-2xl text-gray-800 dark:text-white">
                 <span>Milano</span>
             </div>
@@ -81,8 +81,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
       </div>
 
       {/* Menu Items */}
-      <nav className="flex-1 overflow-y-auto py-6 px-2 custom-scrollbar">
-        <ul className="space-y-2">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar">
+        <ul className="space-y-1">
           {menuItems.map((item) => {
             const isActive = activeView === item.id;
             const Icon = item.icon;
@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
                   onClick={() => handleItemClick(item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative
                     ${isActive 
-                      ? 'bg-gray-900 text-white shadow-md' 
+                      ? 'bg-gray-900 text-white shadow-md dark:bg-primary' 
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200'
                     }
                     ${isCollapsed ? 'justify-center' : ''}
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
                   
                   {/* Tooltip for collapsed state */}
                   {isCollapsed && (
-                      <div className={`absolute ${isRTL ? 'right-14' : 'left-14'} bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap`}>
+                      <div className={`absolute ${isRTL ? 'right-16' : 'left-16'} bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap shadow-lg`}>
                           {item.label}
                       </div>
                   )}
@@ -121,8 +121,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
       </nav>
 
       {/* Footer Actions */}
-      <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-        <button className={`w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+        <button 
+          className={`w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+        >
           <LogOut size={18} />
           {!isCollapsed && <span>{isRTL ? 'تسجيل خروج' : 'Logout'}</span>}
         </button>

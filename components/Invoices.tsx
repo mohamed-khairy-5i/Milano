@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Eye, Trash2, Printer, Filter, Search } from 'lucide-react';
-import { Invoice } from '../types';
+import { Invoice, InvoiceItem } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
 
@@ -27,7 +27,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     contactId: string;
     date: string;
     dueDate: string;
-    items: { productId: string; quantity: number; price: number; discount: number }[];
+    items: { productId: string; productName: string; quantity: number; price: number; discount: number }[];
     tax: number;
     notes: string;
     currentLineItem: { productId: string; quantity: number; price: number; discount: number };
@@ -60,9 +60,13 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
 
   const handleAddLineItem = () => {
     if (newInvoiceData.currentLineItem.productId) {
+      const product = products.find(p => p.id === newInvoiceData.currentLineItem.productId);
       setNewInvoiceData({
         ...newInvoiceData,
-        items: [...newInvoiceData.items, newInvoiceData.currentLineItem],
+        items: [...newInvoiceData.items, {
+            ...newInvoiceData.currentLineItem,
+            productName: product?.name || 'Unknown Product'
+        }],
         currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
       });
     }
@@ -77,6 +81,16 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     
     const prefix = type === 'sale' ? 'INV' : 'PUR';
 
+    // Prepare items for saving
+    const savedItems: InvoiceItem[] = newInvoiceData.items.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount,
+        total: (item.quantity * item.price) - item.discount
+    }));
+
     addInvoice({
       number: `${prefix}-${Date.now().toString().substr(-4)}`, 
       date: newInvoiceData.date,
@@ -89,7 +103,9 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
       tax: newInvoiceData.tax,
       status: 'pending',
       type: type,
-      itemsCount: newInvoiceData.items.length
+      itemsCount: newInvoiceData.items.length,
+      items: savedItems,
+      notes: newInvoiceData.notes
     });
 
     setIsModalOpen(false);
@@ -111,9 +127,151 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     }
   };
 
-  const handlePrint = (id: string) => {
-      alert(isRTL ? "جاري طباعة الفاتورة: " + id : "Printing Invoice: " + id);
-      // In a real app, this would open a print window
+  const handlePrint = (invoice: Invoice) => {
+      // Find contact details
+      const contact = contacts.find(c => c.id === invoice.contactId);
+      const contactPhone = contact?.phone || '';
+      const contactAddress = contact?.address || '';
+
+      const printWindow = window.open('', '_blank', 'width=900,height=800');
+      if (!printWindow) {
+          alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print');
+          return;
+      }
+
+      const currencySymbol = currency;
+      const direction = isRTL ? 'rtl' : 'ltr';
+      const textAlign = isRTL ? 'right' : 'left';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html dir="${direction}">
+        <head>
+            <title>${isRTL ? 'فاتورة' : 'Invoice'} #${invoice.number}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+            <style>
+                body { font-family: 'Cairo', sans-serif; background: #f0f0f0; padding: 20px; }
+                .invoice-container { background: white; max-width: 800px; margin: 0 auto; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; }
+                .header { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+                .logo { font-size: 28px; font-weight: bold; color: #2563eb; }
+                .meta { text-align: ${isRTL ? 'left' : 'right'}; }
+                .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 20px; }
+                .info-box { flex: 1; background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; }
+                .info-title { font-weight: bold; margin-bottom: 10px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                th { background: #f3f4f6; padding: 15px; text-align: ${textAlign}; border-bottom: 2px solid #e5e7eb; font-size: 14px; color: #374151; font-weight: bold; }
+                td { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; color: #1f2937; }
+                tr:last-child td { border-bottom: none; }
+                .totals { width: 300px; margin-${isRTL ? 'right' : 'left'}: auto; background: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; }
+                .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+                .total-row.final { font-weight: bold; font-size: 20px; border-top: 2px solid #2563eb; margin-top: 10px; padding-top: 10px; color: #2563eb; }
+                .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #eee; padding-top: 20px; }
+                .print-btn { display: block; width: 100%; padding: 15px; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 20px; border-radius: 8px; }
+                .print-btn:hover { background: #1d4ed8; }
+                @media print {
+                    body { background: white; padding: 0; }
+                    .invoice-container { box-shadow: none; padding: 0; }
+                    .print-btn { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save as PDF'}</button>
+                
+                <div class="header">
+                    <div class="logo">Milano Store</div>
+                    <div class="meta">
+                        <div style="font-size: 20px; font-weight: bold; color: #111827;">${type === 'sale' ? (isRTL ? 'فاتورة مبيعات' : 'SALES INVOICE') : (isRTL ? 'فاتورة مشتريات' : 'PURCHASE INVOICE')}</div>
+                        <div style="margin-top: 5px; color: #6b7280;"># ${invoice.number}</div>
+                        <div style="color: #6b7280;">${invoice.date}</div>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-box">
+                        <div class="info-title">${isRTL ? 'من' : 'From'}</div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">Milano Store</div>
+                        <div style="color: #4b5563;">Main Street, City Center</div>
+                        <div style="color: #4b5563;">+967 777 000 000</div>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-title">${isRTL ? 'إلى' : 'To'}</div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${invoice.contactName}</div>
+                        <div style="color: #4b5563;">${contactPhone}</div>
+                        <div style="color: #4b5563;">${contactAddress}</div>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="50%">${isRTL ? 'المنتج' : 'Product'}</th>
+                            <th width="15%">${isRTL ? 'الكمية' : 'Qty'}</th>
+                            <th width="15%">${isRTL ? 'السعر' : 'Price'}</th>
+                            <th width="20%">${isRTL ? 'الإجمالي' : 'Total'}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${invoice.items && invoice.items.length > 0 ? invoice.items.map(item => `
+                        <tr>
+                            <td>
+                                <div style="font-weight: bold;">${item.productName}</div>
+                            </td>
+                            <td>${item.quantity}</td>
+                            <td>${item.price.toLocaleString()}</td>
+                            <td style="font-weight: bold;">${(item.quantity * item.price - item.discount).toLocaleString()}</td>
+                        </tr>
+                        `).join('') : `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #9ca3af; padding: 30px;">
+                                ${isRTL ? 'لا توجد تفاصيل محفوظة لهذه الفاتورة (سجل قديم)' : 'No detailed items saved for this invoice (Legacy record)'}
+                            </td>
+                        </tr>
+                        `}
+                    </tbody>
+                </table>
+
+                <div class="totals">
+                    <div class="total-row">
+                        <span>${isRTL ? 'المجموع الفرعي' : 'Subtotal'}</span>
+                        <span>${(invoice.total - invoice.tax).toLocaleString()} ${currencySymbol}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>${isRTL ? 'الضريبة' : 'Tax'}</span>
+                        <span>${invoice.tax.toLocaleString()} ${currencySymbol}</span>
+                    </div>
+                    <div class="total-row final">
+                        <span>${isRTL ? 'الإجمالي' : 'Total'}</span>
+                        <span>${invoice.total.toLocaleString()} ${currencySymbol}</span>
+                    </div>
+                    <div class="total-row" style="color: #059669; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb;">
+                        <span>${isRTL ? 'المدفوع' : 'Paid'}</span>
+                        <span>${invoice.paidAmount.toLocaleString()} ${currencySymbol}</span>
+                    </div>
+                    <div class="total-row" style="color: #dc2626;">
+                        <span>${isRTL ? 'المتبقي' : 'Remaining'}</span>
+                        <span>${invoice.remainingAmount.toLocaleString()} ${currencySymbol}</span>
+                    </div>
+                </div>
+
+                ${invoice.notes ? `
+                <div style="margin-top: 30px; padding: 20px; background: #fffbeb; border-radius: 8px; border: 1px solid #fcd34d;">
+                    <strong style="color: #b45309; display: block; margin-bottom: 5px;">${isRTL ? 'ملاحظات:' : 'Notes:'}</strong> 
+                    <span style="color: #92400e;">${invoice.notes}</span>
+                </div>
+                ` : ''}
+
+                <div class="footer">
+                    ${isRTL ? 'شكراً لتعاملكم معنا' : 'Thank you for your business'}
+                </div>
+            </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
   };
 
   return (
@@ -201,7 +359,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                         <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
-                                    onClick={() => handlePrint(invoice.id)}
+                                    onClick={() => handlePrint(invoice)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
                                 >
@@ -229,7 +387,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         </table>
       </div>
 
-      {/* Create Invoice Modal - (Content identical to before) */}
+      {/* Create Invoice Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -246,7 +404,6 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             </>
         }
       >
-         {/* Modal Content unchanged */}
          <div className="space-y-6 py-2">
             {/* Row 1: Contact (Customer/Supplier) and Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -358,10 +515,9 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {newInvoiceData.items.map((item, idx) => {
-                                    const p = products.find(x => x.id === item.productId);
                                     return (
                                         <tr key={idx}>
-                                            <td className="px-3 py-2">{p?.name}</td>
+                                            <td className="px-3 py-2">{item.productName}</td>
                                             <td className="px-3 py-2">{item.quantity}</td>
                                             <td className="px-3 py-2">{item.price}</td>
                                             <td className="px-3 py-2">{(item.quantity * item.price) - item.discount}</td>

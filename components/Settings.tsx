@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { Save, Globe, Database, User, Shield, Building } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check } from 'lucide-react';
+import { useData } from '../DataContext';
 
 interface SettingsProps {
   isRTL: boolean;
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
+  const { currency, setCurrency } = useData();
   const [activeTab, setActiveTab] = useState('general');
 
   const tabs = [
@@ -74,6 +76,58 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
             </div>
         )}
 
+        {/* Currency Settings */}
+        {activeTab === 'currencies' && (
+             <div className="space-y-6 max-w-2xl animate-fade-in">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 dark:border-gray-700">
+                    {isRTL ? 'إعدادات العملة' : 'Currency Settings'}
+                </h3>
+                <div className="grid grid-cols-1 gap-4">
+                    <div 
+                         onClick={() => setCurrency('YER')}
+                         className={`p-4 border rounded-lg cursor-pointer transition-all flex justify-between items-center ${currency === 'YER' ? 'border-primary bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-700 dark:text-gray-300">YER</div>
+                            <div>
+                                <p className="font-bold text-gray-900 dark:text-white">{isRTL ? 'ريال يمني' : 'Yemeni Rial'}</p>
+                                <p className="text-sm text-gray-500">YER</p>
+                            </div>
+                        </div>
+                        {currency === 'YER' && <Check size={20} className="text-primary" />}
+                    </div>
+
+                    <div 
+                         onClick={() => setCurrency('SAR')}
+                         className={`p-4 border rounded-lg cursor-pointer transition-all flex justify-between items-center ${currency === 'SAR' ? 'border-primary bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-700 dark:text-gray-300">SAR</div>
+                            <div>
+                                <p className="font-bold text-gray-900 dark:text-white">{isRTL ? 'ريال سعودي' : 'Saudi Riyal'}</p>
+                                <p className="text-sm text-gray-500">SAR</p>
+                            </div>
+                        </div>
+                        {currency === 'SAR' && <Check size={20} className="text-primary" />}
+                    </div>
+
+                    <div 
+                         onClick={() => setCurrency('USD')}
+                         className={`p-4 border rounded-lg cursor-pointer transition-all flex justify-between items-center ${currency === 'USD' ? 'border-primary bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-700 dark:text-gray-300">USD</div>
+                            <div>
+                                <p className="font-bold text-gray-900 dark:text-white">{isRTL ? 'دولار أمريكي' : 'US Dollar'}</p>
+                                <p className="text-sm text-gray-500">USD</p>
+                            </div>
+                        </div>
+                        {currency === 'USD' && <Check size={20} className="text-primary" />}
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Backup Settings */}
         {activeTab === 'backup' && (
              <div className="space-y-6 max-w-2xl animate-fade-in">
@@ -98,13 +152,13 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
         )}
 
         {/* Placeholder for others */}
-        {['users', 'currencies', 'permissions'].includes(activeTab) && (
+        {['users', 'permissions'].includes(activeTab) && (
             <div className="flex items-center justify-center h-64 text-gray-400 animate-fade-in">
                 <p>{isRTL ? 'هذا القسم قيد التطوير...' : 'This section is under development...'}</p>
             </div>
         )}
 
-        {/* Save Button (Fixed at bottom of content for some tabs) */}
+        {/* Save Button */}
         {activeTab === 'general' && (
             <div className="mt-8 pt-4 border-t dark:border-gray-700">
                 <button className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">

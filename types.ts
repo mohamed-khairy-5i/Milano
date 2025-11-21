@@ -31,6 +31,15 @@ export interface Contact {
   type: 'customer' | 'supplier';
 }
 
+export interface InvoiceItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  discount: number;
+  total: number;
+}
+
 export interface Invoice {
   id: string;
   number: string;
@@ -43,8 +52,10 @@ export interface Invoice {
   status: 'paid' | 'pending' | 'cancelled';
   type: 'sale' | 'purchase';
   itemsCount: number;
+  items?: InvoiceItem[]; // Added to support printing details
   paidAmount: number;
   remainingAmount: number;
+  notes?: string;
 }
 
 export interface Bond {
@@ -90,5 +101,7 @@ export type ViewState =
   | 'customers' 
   | 'suppliers' 
   | 'expenses'
+  | 'stock'
   | 'accounting'
+  | 'reports'
   | 'settings';

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Globe, Bell, Menu, X } from 'lucide-react';
+import { Sun, Moon, Globe, Menu, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import POS from './components/POS';
@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // For mobile
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // For desktop collapse
   
   // Auth State
@@ -73,6 +73,8 @@ const App: React.FC = () => {
       case 'suppliers':
         return <Contacts isRTL={isRTL} type="supplier" />;
       case 'expenses':
+        return <Expenses isRTL={isRTL} />;
+      case 'stock':
         return <Stock isRTL={isRTL} />;
       case 'accounting':
          return <Bonds isRTL={isRTL} />;
@@ -93,19 +95,19 @@ const App: React.FC = () => {
     <div className={`flex h-screen w-full font-${isRTL ? 'cairo' : 'sans'} bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden`}>
       
       {/* Mobile Sidebar Overlay */}
-      {!isSidebarOpen && (
+      {isSidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black/50 z-10 lg:hidden"
-            onClick={() => setIsSidebarOpen(true)}
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
           />
       )}
 
       {/* Sidebar Container */}
       <div className={`
-        fixed lg:static inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-20
+        fixed lg:static inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-30
         ${isSidebarCollapsed ? 'w-20' : 'w-64'} 
         transform ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full' : '-translate-x-full')} 
-        lg:transform-none transition-all duration-300 ease-in-out h-full
+        lg:transform-none transition-all duration-300 ease-in-out h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
       `}>
          <Sidebar 
             activeView={activeView} 
@@ -126,7 +128,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
             >
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -140,7 +142,7 @@ const App: React.FC = () => {
              <select 
                value={currency}
                onChange={(e) => setCurrency(e.target.value as Currency)}
-               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white outline-none cursor-pointer"
              >
                <option value="YER">{isRTL ? 'ريال يمني' : 'YER'}</option>
                <option value="SAR">{isRTL ? 'ريال سعودي' : 'SAR'}</option>
@@ -150,7 +152,7 @@ const App: React.FC = () => {
              {/* Icons */}
             <button 
               onClick={toggleLang}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
               title={isRTL ? 'Switch to English' : 'التحويل للعربية'}
             >
               <Globe size={20} />
@@ -162,11 +164,18 @@ const App: React.FC = () => {
             >
               {isDarkMode ? <Moon size={20} /> : <Sun size={20} />}
             </button>
+
+            <button 
+              onClick={handleLogout}
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+            >
+              {isRTL ? 'خروج' : 'Logout'}
+            </button>
           </div>
         </header>
 
         {/* View Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
           <div className="max-w-full mx-auto h-full">
             {renderContent()}
           </div>
