@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, RefreshCw } from 'lucide-react';
 import { useData } from '../DataContext';
 
 interface SettingsProps {
@@ -8,7 +8,7 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
-  const { currency, setCurrency } = useData();
+  const { currency, setCurrency, resetData } = useData();
   const [activeTab, setActiveTab] = useState('general');
 
   const tabs = [
@@ -18,6 +18,13 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     { id: 'backup', label: isRTL ? 'النسخ الاحتياطي' : 'Backup', icon: Database },
     { id: 'permissions', label: isRTL ? 'الصلاحيات' : 'Permissions', icon: Shield },
   ];
+
+  const handleLoadDemoData = () => {
+      if (confirm(isRTL ? 'سيتم استبدال البيانات الحالية ببيانات تجريبية واقعية. هل أنت متأكد؟' : 'This will replace current data with realistic demo data. Are you sure?')) {
+          resetData();
+          alert(isRTL ? 'تم تحميل البيانات بنجاح!' : 'Demo data loaded successfully!');
+      }
+  };
 
   return (
     <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-8rem)]">
@@ -134,6 +141,25 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 dark:border-gray-700">
                     {isRTL ? 'النسخ الاحتياطي والاستعادة' : 'Backup & Restore'}
                 </h3>
+                
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-lg text-purple-600 dark:text-purple-300">
+                            <RefreshCw size={24} />
+                        </div>
+                        <div>
+                             <h4 className="font-semibold text-gray-900 dark:text-white">{isRTL ? 'تحميل بيانات تجريبية' : 'Load Demo Data'}</h4>
+                             <p className="text-sm text-gray-500">{isRTL ? 'استبدال البيانات الحالية ببيانات واقعية للتجربة' : 'Replace current data with realistic demo data'}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleLoadDemoData}
+                        className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-bold"
+                    >
+                        {isRTL ? 'تحميل البيانات الآن' : 'Load Data Now'}
+                    </button>
+                </div>
+
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
                     <h4 className="font-semibold text-primary mb-2">{isRTL ? 'إنشاء نسخة احتياطية' : 'Create Backup'}</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">

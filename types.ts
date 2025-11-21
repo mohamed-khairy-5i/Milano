@@ -49,10 +49,10 @@ export interface Invoice {
   contactId: string;
   total: number;
   tax: number;
-  status: 'paid' | 'pending' | 'cancelled';
+  status: 'paid' | 'pending' | 'cancelled' | 'credit'; // Added 'credit' for Ajel
   type: 'sale' | 'purchase';
   itemsCount: number;
-  items?: InvoiceItem[]; // Added to support printing details
+  items?: InvoiceItem[];
   paidAmount: number;
   remainingAmount: number;
   notes?: string;
@@ -92,6 +92,24 @@ export interface Stats {
   profit: number;
 }
 
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  password: string; // In real app, this should be hashed
+  role: 'admin' | 'user';
+}
+
+export interface Account {
+  id: string;
+  code: string;
+  name: string;
+  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+  openingBalance: number;
+  description?: string;
+  systemAccount?: boolean; // Cannot be deleted if true
+}
+
 export type ViewState = 
   | 'dashboard' 
   | 'pos' 
@@ -102,6 +120,7 @@ export type ViewState =
   | 'suppliers' 
   | 'expenses'
   | 'stock'
-  | 'accounting'
+  | 'accounting' // This is Bonds
+  | 'accounts'   // This is the new Accounts Management (Ledger, Chart of Accounts, etc.)
   | 'reports'
   | 'settings';

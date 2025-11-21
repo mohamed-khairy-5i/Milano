@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Menu,
-  DollarSign
+  DollarSign,
+  Calculator
 } from 'lucide-react';
 import { ViewState } from '../types';
 
@@ -25,9 +26,10 @@ interface SidebarProps {
   isCollapsed?: boolean;
   toggleCollapse?: () => void;
   onClose?: () => void;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCollapsed = false, toggleCollapse, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCollapsed = false, toggleCollapse, onClose, onLogout }) => {
   const menuItems = [
     { id: 'dashboard', label: isRTL ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
     { id: 'customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users },
@@ -38,6 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
     { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag },
     { id: 'accounting', label: isRTL ? 'السندات' : 'Bonds', icon: FileText }, 
     { id: 'expenses', label: isRTL ? 'المصروفات' : 'Expenses', icon: DollarSign },
+    { id: 'accounts', label: isRTL ? 'إدارة الحسابات' : 'Accounts', icon: Calculator },
     { id: 'reports', label: isRTL ? 'التقارير' : 'Reports', icon: BarChart3 },
   ];
 
@@ -123,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
       {/* Footer Actions */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
         <button 
+          onClick={onLogout}
           className={`w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
         >
           <LogOut size={18} />

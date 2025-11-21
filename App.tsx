@@ -11,6 +11,7 @@ import Expenses from './components/Expenses';
 import Stock from './components/Stock';
 import Bonds from './components/Bonds';
 import Reports from './components/Reports';
+import Accounts from './components/Accounts';
 import Settings from './components/Settings';
 import Login from './Login';
 import { ViewState } from './types';
@@ -78,6 +79,8 @@ const App: React.FC = () => {
         return <Stock isRTL={isRTL} />;
       case 'accounting':
          return <Bonds isRTL={isRTL} />;
+      case 'accounts':
+         return <Accounts isRTL={isRTL} />;
       case 'reports':
          return <Reports isRTL={isRTL} />;
       case 'settings':
@@ -116,6 +119,7 @@ const App: React.FC = () => {
             isCollapsed={isSidebarCollapsed}
             toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             onClose={() => setIsSidebarOpen(false)}
+            onLogout={handleLogout}
          />
       </div>
 

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { RefreshCw, Search, Plus } from 'lucide-react';
+import { RefreshCw, Search, Plus, ClipboardList, Package } from 'lucide-react';
 import { useData } from '../DataContext';
 import Modal from './Modal';
 
@@ -9,8 +9,9 @@ interface StockProps {
 }
 
 const Stock: React.FC<StockProps> = ({ isRTL }) => {
-  const { products, updateProduct, currency } = useData();
+  const { products, updateProduct, currency, invoices } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'current' | 'movement'>('current');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,71 +67,182 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };
 
+  // Helper to calculate sold quantity
+  const getSoldQuantity = (productId: string) => {
+    return invoices
+        .filter(i => i.type === 'sale' && i.status !== 'cancelled')
+        .reduce((acc, inv) => {
+            const item = inv.items?.find(i => i.productId === productId);
+            return acc + (item ? item.quantity : 0);
+        }, 0);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
       
       {/* Header */}
-      <div className="mb-6 flex flex-row justify-between items-center">
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-           {isRTL ? 'المخزون' : 'Inventory Stock'}
+           {isRTL ? 'إدارة المخزون' : 'Stock Management'}
         </h2>
 
-        <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold"
-        >
-            <RefreshCw size={18} />
-            <span>{isRTL ? 'تعديل المخزون' : 'Adjust Stock'}</span>
-        </button>
+        <div className="flex items-center gap-3">
+            {/* Tabs */}
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                    onClick={() => setActiveTab('current')}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+                        activeTab === 'current' 
+                        ? 'bg-white dark:bg-gray-600 shadow text-black dark:text-white' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                    }`}
+                >
+                    <Package size={16} />
+                    {isRTL ? 'المخزون الحالي' : 'Current Stock'}
+                </button>
+                <button
+                    onClick={() => setActiveTab('movement')}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${
+                        activeTab === 'movement' 
+                        ? 'bg-white dark:bg-gray-600 shadow text-black dark:text-white' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                    }`}
+                >
+                    <ClipboardList size={16} />
+                    {isRTL ? 'جرد الأصناف' : 'Inventory Count'}
+                </button>
+            </div>
+
+            <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold"
+            >
+                <RefreshCw size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'تعديل سريع' : 'Adjust Stock'}</span>
+            </button>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Search */}
+      <div className="mb-4">
+         <div className="relative">
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                <Search size={18} />
+            </div>
+            <input 
+                type="text" 
+                className="block w-full md:w-96 p-2.5 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                placeholder={isRTL ? "بحث في المخزون..." : "Search stock..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+      </div>
+
+      {/* Content Area */}
       <div className="flex-1 overflow-auto border border-gray-100 dark:border-gray-700 rounded-lg">
-        <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
-            <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold">
-                <tr>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكود' : 'Code'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المنتج' : 'Product'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المخزن' : 'Store'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكمية' : 'Quantity'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر البيع' : 'Selling Price'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'القيمة' : 'Value'}</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <td className="px-6 py-4 text-end">{product.code}</td>
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
-                            {product.name}
-                        </td>
-                        <td className="px-6 py-4 text-end">
-                            {isRTL ? 'المخزن الرئيسي' : 'Main Store'}
-                        </td>
-                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
-                            {product.stock}
-                        </td>
-                        <td className="px-6 py-4 text-end">
-                            {formatCurrency(product.priceBuy)}
-                        </td>
-                        <td className="px-6 py-4 text-end">
-                             {formatCurrency(product.priceSell)}
-                        </td>
-                        <td className="px-6 py-4 text-end font-medium text-green-600">
-                             {formatCurrency(product.stock * product.priceBuy)}
-                        </td>
-                    </tr>
-                ))}
-                {filteredProducts.length === 0 && (
+        
+        {/* View 1: Current Stock */}
+        {activeTab === 'current' && (
+            <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
+                <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0">
                     <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                            {isRTL ? 'لا توجد منتجات' : 'No products found'}
-                        </td>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكود' : 'Code'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المنتج' : 'Product'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المخزن' : 'Store'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكمية المتوفرة' : 'Available Qty'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر البيع' : 'Selling Price'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي القيمة' : 'Total Value'}</th>
                     </tr>
-                )}
-            </tbody>
-        </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                    {filteredProducts.map((product) => (
+                        <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <td className="px-6 py-4 text-end">{product.code}</td>
+                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
+                                {product.name}
+                            </td>
+                            <td className="px-6 py-4 text-end">
+                                {isRTL ? 'المخزن الرئيسي' : 'Main Store'}
+                            </td>
+                            <td className={`px-6 py-4 text-end font-bold ${product.stock <= product.minStock ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
+                                {product.stock} {product.unit}
+                            </td>
+                            <td className="px-6 py-4 text-end">
+                                {formatCurrency(product.priceBuy)}
+                            </td>
+                            <td className="px-6 py-4 text-end">
+                                {formatCurrency(product.priceSell)}
+                            </td>
+                            <td className="px-6 py-4 text-end font-medium text-green-600">
+                                {formatCurrency(product.stock * product.priceBuy)}
+                            </td>
+                        </tr>
+                    ))}
+                    {filteredProducts.length === 0 && (
+                        <tr>
+                            <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                                {isRTL ? 'لا توجد منتجات' : 'No products found'}
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        )}
+
+        {/* View 2: Inventory Count / Movement */}
+        {activeTab === 'movement' && (
+            <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
+                <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0">
+                    <tr>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المنتج' : 'Product'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكمية المباعة' : 'Sold Qty'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المتبقي في المخزون' : 'Remaining Stock'}</th>
+                        <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'الحالة' : 'Status'}</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                    {filteredProducts.map((product) => {
+                        const soldQty = getSoldQuantity(product.id);
+                        const isLowStock = product.stock <= product.minStock;
+                        const isOutOfStock = product.stock === 0;
+
+                        return (
+                            <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
+                                    <div>{product.name}</div>
+                                    <div className="text-xs text-gray-400">{product.code}</div>
+                                </td>
+                                <td className="px-6 py-4 text-end font-bold text-blue-600 bg-blue-50/50 dark:bg-blue-900/10">
+                                    {soldQty} {product.unit}
+                                </td>
+                                <td className="px-6 py-4 text-end font-bold text-green-600 bg-green-50/50 dark:bg-green-900/10">
+                                    {product.stock} {product.unit}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    {isOutOfStock ? (
+                                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-bold">{isRTL ? 'نفذت الكمية' : 'Out of Stock'}</span>
+                                    ) : isLowStock ? (
+                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-bold">{isRTL ? 'منخفض' : 'Low Stock'}</span>
+                                    ) : (
+                                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-bold">{isRTL ? 'متوفر' : 'In Stock'}</span>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                    {filteredProducts.length === 0 && (
+                        <tr>
+                            <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                                {isRTL ? 'لا توجد بيانات' : 'No data found'}
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        )}
+
       </div>
 
       {/* Adjust Stock Modal */}

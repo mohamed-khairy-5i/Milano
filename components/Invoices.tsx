@@ -29,6 +29,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     dueDate: string;
     items: { productId: string; productName: string; quantity: number; price: number; discount: number }[];
     tax: number;
+    status: 'paid' | 'pending' | 'credit';
     notes: string;
     currentLineItem: { productId: string; quantity: number; price: number; discount: number };
   }>({
@@ -37,6 +38,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     dueDate: new Date().toISOString().split('T')[0],
     items: [],
     tax: 0,
+    status: 'paid', // Default to Paid
     notes: '',
     currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
   });
@@ -81,6 +83,16 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     
     const prefix = type === 'sale' ? 'INV' : 'PUR';
 
+    // Determine Paid/Remaining based on selected status
+    let paidAmount = 0;
+    if (newInvoiceData.status === 'paid') {
+        paidAmount = total;
+    } else {
+        // for 'credit' or 'pending'
+        paidAmount = 0; 
+    }
+    const remainingAmount = total - paidAmount;
+
     // Prepare items for saving
     const savedItems: InvoiceItem[] = newInvoiceData.items.map(item => ({
         productId: item.productId,
@@ -98,10 +110,10 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
       contactName: selectedContact?.name || 'Unknown',
       contactId: newInvoiceData.contactId,
       total: total,
-      paidAmount: 0, 
-      remainingAmount: total,
+      paidAmount: paidAmount, 
+      remainingAmount: remainingAmount,
       tax: newInvoiceData.tax,
-      status: 'pending',
+      status: newInvoiceData.status,
       type: type,
       itemsCount: newInvoiceData.items.length,
       items: savedItems,
@@ -116,6 +128,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
       dueDate: new Date().toISOString().split('T')[0],
       items: [],
       tax: 0,
+      status: 'paid',
       notes: '',
       currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
     });
@@ -347,12 +360,12 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                         <td className="px-6 py-4 text-center">
                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium
                                 ${invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 
-                                  invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
-                                  'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                                  (invoice.status === 'credit' || invoice.status === 'pending') ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                                 }`}>
                                 {isRTL 
-                                  ? (invoice.status === 'paid' ? 'مدفوع' : invoice.status === 'pending' ? 'معلق' : 'ملغي')
-                                  : invoice.status.toUpperCase()
+                                  ? (invoice.status === 'paid' ? 'مدفوع' : invoice.status === 'credit' ? 'آجل' : invoice.status === 'pending' ? 'معلق' : 'ملغي')
+                                  : (invoice.status === 'credit' ? 'Credit' : invoice.status.toUpperCase())
                                 }
                             </span>
                         </td>
@@ -431,14 +444,28 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 </div>
             </div>
 
-             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'تاريخ الاستحقاق' : 'Due Date'}</label>
-                <input 
-                    type="date" 
-                    value={newInvoiceData.dueDate}
-                    onChange={e => setNewInvoiceData({ ...newInvoiceData, dueDate: e.target.value })}
-                    className="w-full p-2.5 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'تاريخ الاستحقاق' : 'Due Date'}</label>
+                    <input 
+                        type="date" 
+                        value={newInvoiceData.dueDate}
+                        onChange={e => setNewInvoiceData({ ...newInvoiceData, dueDate: e.target.value })}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{isRTL ? 'حالة الفاتورة' : 'Invoice Status'}</label>
+                    <select
+                        value={newInvoiceData.status}
+                        onChange={e => setNewInvoiceData({ ...newInvoiceData, status: e.target.value as any })}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    >
+                        <option value="paid">{isRTL ? 'مدفوع' : 'Paid'}</option>
+                        <option value="credit">{isRTL ? 'آجل' : 'Credit'}</option>
+                        <option value="pending">{isRTL ? 'معلق' : 'Pending'}</option>
+                    </select>
+                </div>
             </div>
 
             <div>
