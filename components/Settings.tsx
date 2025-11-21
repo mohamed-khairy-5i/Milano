@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check, RefreshCw } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, Trash2 } from 'lucide-react';
 import { useData } from '../DataContext';
 
 interface SettingsProps {
@@ -19,10 +19,10 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     { id: 'permissions', label: isRTL ? 'الصلاحيات' : 'Permissions', icon: Shield },
   ];
 
-  const handleLoadDemoData = () => {
-      if (confirm(isRTL ? 'سيتم استبدال البيانات الحالية ببيانات تجريبية واقعية. هل أنت متأكد؟' : 'This will replace current data with realistic demo data. Are you sure?')) {
+  const handleClearData = () => {
+      if (confirm(isRTL ? 'تحذير: سيتم حذف جميع البيانات (المنتجات، العملاء، الفواتير) والعودة لحالة المصنع. هل أنت متأكد؟' : 'WARNING: This will delete ALL data (Products, Clients, Invoices) and reset to factory settings. Are you sure?')) {
           resetData();
-          alert(isRTL ? 'تم تحميل البيانات بنجاح!' : 'Demo data loaded successfully!');
+          alert(isRTL ? 'تم حذف البيانات بنجاح.' : 'Data cleared successfully.');
       }
   };
 
@@ -142,21 +142,21 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                     {isRTL ? 'النسخ الاحتياطي والاستعادة' : 'Backup & Restore'}
                 </h3>
                 
-                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-lg text-purple-600 dark:text-purple-300">
-                            <RefreshCw size={24} />
+                        <div className="p-2 bg-red-100 dark:bg-red-800 rounded-lg text-red-600 dark:text-red-300">
+                            <Trash2 size={24} />
                         </div>
                         <div>
-                             <h4 className="font-semibold text-gray-900 dark:text-white">{isRTL ? 'تحميل بيانات تجريبية' : 'Load Demo Data'}</h4>
-                             <p className="text-sm text-gray-500">{isRTL ? 'استبدال البيانات الحالية ببيانات واقعية للتجربة' : 'Replace current data with realistic demo data'}</p>
+                             <h4 className="font-semibold text-gray-900 dark:text-white">{isRTL ? 'حذف جميع البيانات' : 'Clear All Data'}</h4>
+                             <p className="text-sm text-gray-500">{isRTL ? 'إعادة ضبط المصنع وحذف جميع البيانات المدخلة.' : 'Factory reset: Delete all entered data.'}</p>
                         </div>
                     </div>
                     <button 
-                        onClick={handleLoadDemoData}
-                        className="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-bold"
+                        onClick={handleClearData}
+                        className="w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-bold"
                     >
-                        {isRTL ? 'تحميل البيانات الآن' : 'Load Data Now'}
+                        {isRTL ? 'حذف البيانات (ضبط المصنع)' : 'Factory Reset'}
                     </button>
                 </div>
 

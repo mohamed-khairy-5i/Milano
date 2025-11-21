@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product, Contact, Invoice, Expense, Bond, User, Account } from './types';
-import { MOCK_PRODUCTS, MOCK_CONTACTS, MOCK_INVOICES, MOCK_EXPENSES, MOCK_BONDS } from './constants';
 
 export type Currency = 'YER' | 'SAR' | 'USD';
 
@@ -82,12 +81,12 @@ const DEFAULT_ACCOUNTS: Account[] = [
 ];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Initialize state from localStorage or fallback to MOCK/Empty
-  const [products, setProducts] = useState<Product[]>(() => loadFromStorage('milano_products', MOCK_PRODUCTS));
-  const [contacts, setContacts] = useState<Contact[]>(() => loadFromStorage('milano_contacts', MOCK_CONTACTS));
-  const [invoices, setInvoices] = useState<Invoice[]>(() => loadFromStorage('milano_invoices', MOCK_INVOICES));
-  const [expenses, setExpenses] = useState<Expense[]>(() => loadFromStorage('milano_expenses', MOCK_EXPENSES));
-  const [bonds, setBonds] = useState<Bond[]>(() => loadFromStorage('milano_bonds', MOCK_BONDS));
+  // Initialize state from localStorage or fallback to Empty Arrays (Production Ready)
+  const [products, setProducts] = useState<Product[]>(() => loadFromStorage('milano_products', []));
+  const [contacts, setContacts] = useState<Contact[]>(() => loadFromStorage('milano_contacts', []));
+  const [invoices, setInvoices] = useState<Invoice[]>(() => loadFromStorage('milano_invoices', []));
+  const [expenses, setExpenses] = useState<Expense[]>(() => loadFromStorage('milano_expenses', []));
+  const [bonds, setBonds] = useState<Bond[]>(() => loadFromStorage('milano_bonds', []));
   const [currency, setCurrency] = useState<Currency>(() => loadFromStorage('milano_currency', 'YER'));
   const [accounts, setAccounts] = useState<Account[]>(() => loadFromStorage('milano_accounts', DEFAULT_ACCOUNTS));
   
@@ -111,14 +110,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Helper to generate ID
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
-  // --- Reset Data ---
+  // --- Reset Data (Factory Reset) ---
   const resetData = () => {
-    setProducts(MOCK_PRODUCTS);
-    setContacts(MOCK_CONTACTS);
-    setInvoices(MOCK_INVOICES);
-    setExpenses(MOCK_EXPENSES);
-    setBonds(MOCK_BONDS);
-    setAccounts(DEFAULT_ACCOUNTS);
+    setProducts([]);
+    setContacts([]);
+    setInvoices([]);
+    setExpenses([]);
+    setBonds([]);
+    setAccounts(DEFAULT_ACCOUNTS); // Reset accounts to default structure
     // We generally don't reset Users or Currency to avoid locking the user out
   };
 
