@@ -78,6 +78,27 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
   canManageSettings: true
 };
 
+// Helper to safely extract ID from string or object (Firestore Ref)
+const safeId = (val: any): string => {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (val.id) return String(val.id);
+  return '';
+};
+
+// Helper to safely sanitize permissions
+const safePermissions = (perm: any): UserPermissions => {
+  if (!perm) return DEFAULT_PERMISSIONS;
+  return {
+    canSell: !!perm.canSell,
+    canManageStock: !!perm.canManageStock,
+    canManageContacts: !!perm.canManageContacts,
+    canManageAccounting: !!perm.canManageAccounting,
+    canViewReports: !!perm.canViewReports,
+    canManageSettings: !!perm.canManageSettings,
+  };
+};
+
 // Default Accounts Template for new stores
 const DEFAULT_ACCOUNTS_TEMPLATE = [
   { code: '1001', name: 'الصندوق (النقدية)', type: 'asset', openingBalance: 0, systemAccount: true },
@@ -95,7 +116,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('milano_user_session');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
   });
 
   // Data State
@@ -106,7 +131,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [users, setUsers] = useState<User[]>([]); // Employees of current store
+  const [users, setUsers] = useState<User[]>([]); 
   
   const [currency, setCurrencyState] = useState<Currency>(() => {
     return (localStorage.getItem('milano_currency') as Currency) || 'YER';
@@ -117,10 +142,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('milano_currency', c);
   };
 
-  // Persist User Session
+  // Persist User Session - STRICT SANITIZATION
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('milano_user_session', JSON.stringify(currentUser));
+      try {
+        // Defensive copy: Ensure NO Firestore References or complex objects are passed to JSON.stringify
+        const safeUser: User = {
+          id: String(currentUser.id),
+          name: String(currentUser.name || ''),
+          username: String(currentUser.username || ''),
+          password: String(currentUser.password || ''), // In real app, don't store pwd
+          role: currentUser.role === 'admin' ? 'admin' : 'user',
+          storeId: safeId(currentUser.storeId),
+          permissions: safePermissions(currentUser.permissions),
+          createdAt: String(currentUser.createdAt || new Date().toISOString())
+        };
+        
+        localStorage.setItem('milano_user_session', JSON.stringify(safeUser));
+      } catch (error) {
+        console.error("Error saving session to localStorage:", error);
+      }
     } else {
       localStorage.removeItem('milano_user_session');
       // Clear data when logged out
@@ -140,7 +181,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (!currentUser?.storeId) return;
 
-    const storeId = currentUser.storeId;
+    const storeId = safeId(currentUser.storeId);
 
     // Subscribe to Store Details
     const unsubStore = onSnapshot(doc(db, 'stores', storeId), (docSnapshot) => {
@@ -151,10 +192,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     const subscribe = <T,>(collectionName: string, setState: React.Dispatch<React.SetStateAction<T[]>>) => {
-      // IMPORTANT: Only fetch data for this specific storeId
       const q = query(collection(db, collectionName), where('storeId', '==', storeId));
       return onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+        const data = snapshot.docs.map(doc => {
+            // Flatten data to avoid nested Firestore objects
+            const docData = doc.data();
+            return { 
+                id: doc.id, 
+                ...docData,
+                // Explicitly convert Timestamp objects if they exist in the data
+                ...(docData.createdAt && typeof docData.createdAt.toDate === 'function' ? { createdAt: docData.createdAt.toDate().toISOString() } : {}),
+                ...(docData.date && typeof docData.date.toDate === 'function' ? { date: docData.date.toDate().toISOString() } : {})
+            } as T;
+        });
         setState(data);
       }, (error) => console.error(`Error fetching ${collectionName}:`, error));
     };
@@ -177,22 +227,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       unsubAccounts();
       unsubUsers();
     };
-  }, [currentUser?.storeId]);
+  }, [currentUser]);
 
 
   // --- AUTH & USER MANAGEMENT ---
 
-  // 1. Register New Store (External Sign Up)
   const registerStore = async (userData: Omit<User, 'id' | 'storeId' | 'permissions'>) => {
     try {
-      // Check if username exists globally
       const q = query(collection(db, 'users'), where('username', '==', userData.username));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
         return { success: false, message: 'Username already taken' };
       }
 
-      // Generate a new unique Store ID
       const newStoreId = `STORE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       const newUser: Omit<User, 'id'> = {
@@ -205,10 +252,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await addDoc(collection(db, 'users'), newUser);
       
-      // Create Initial Store Settings
       await setDoc(doc(db, 'stores', newStoreId), { name: 'Milano Store' });
 
-      // Seed Default Accounts for this new store
       const batch = writeBatch(db);
       DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
         const docRef = doc(collection(db, 'accounts'));
@@ -223,21 +268,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // 2. Add Employee (Internal - Settings)
   const addEmployee = async (userData: Omit<User, 'id' | 'storeId'>) => {
     if (!currentUser) return { success: false, message: 'Not logged in' };
     
     try {
-        // Check username uniqueness
         const q = query(collection(db, 'users'), where('username', '==', userData.username));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
             return { success: false, message: 'Username already exists' };
         }
 
+        const storeId = safeId(currentUser.storeId);
+
         const newEmployee: Omit<User, 'id'> = {
             ...userData,
-            storeId: currentUser.storeId, // Bind to current store
+            storeId: storeId,
             createdAt: new Date().toISOString()
         };
 
@@ -249,24 +294,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // 3. Login
   const loginUser = async (username: string, password: string) => {
     try {
       const q = query(collection(db, 'users'), where('username', '==', username), where('password', '==', password));
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        // Legacy Fallback (For existing users before storeId update or admin backdoor)
         if (username === 'admin' && password === '123') {
-            // Create a dummy admin session for legacy/fallback
             const dummyAdmin: User = {
                 id: 'legacy-admin',
                 name: 'مدير النظام',
                 username: 'admin',
                 password: '123',
                 role: 'admin',
-                storeId: 'main-store', // Default bucket for legacy
-                permissions: DEFAULT_PERMISSIONS
+                storeId: 'main-store',
+                permissions: DEFAULT_PERMISSIONS,
+                createdAt: new Date().toISOString()
             };
             setCurrentUser(dummyAdmin);
             return { success: true };
@@ -274,7 +317,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { success: false, message: 'Invalid credentials' };
       }
 
-      const userData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
+      const docSnap = snapshot.docs[0];
+      const rawData = docSnap.data();
+      
+      // STRICT CONVERSION: Ensure no Firestore objects leak into state
+      const userData: User = {
+        id: docSnap.id,
+        name: String(rawData.name || ''),
+        username: String(rawData.username || ''),
+        password: String(rawData.password || ''),
+        role: rawData.role || 'user',
+        storeId: safeId(rawData.storeId), // Handles Reference objects safely
+        permissions: safePermissions(rawData.permissions),
+        createdAt: rawData.createdAt?.toDate 
+            ? rawData.createdAt.toDate().toISOString() 
+            : String(rawData.createdAt || new Date().toISOString())
+      };
+
       setCurrentUser(userData);
       return { success: true };
     } catch (error) {
@@ -293,12 +352,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (e) { console.error(e); }
   };
 
-  // --- DATA OPERATIONS (Inject storeId automatically) ---
+  // --- DATA OPERATIONS ---
   
   const updateStoreSettings = async (data: { name: string }) => {
      if (!currentUser?.storeId) return;
+     const storeId = safeId(currentUser.storeId);
      try {
-        await setDoc(doc(db, 'stores', currentUser.storeId), data, { merge: true });
+        await setDoc(doc(db, 'stores', storeId), data, { merge: true });
      } catch(e) {
         console.error(e);
      }
@@ -306,8 +366,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addWithStoreId = async (collectionName: string, data: any) => {
       if (!currentUser?.storeId) return;
+      const storeId = safeId(currentUser.storeId);
       try {
-          await addDoc(collection(db, collectionName), { ...data, storeId: currentUser.storeId });
+          await addDoc(collection(db, collectionName), { ...data, storeId });
       } catch (e) { console.error(e); }
   };
 
@@ -340,11 +401,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateAccount = async (account: Account) => { const { id, ...data } = account; try { await updateDoc(doc(db, 'accounts', id), data as any); } catch(e) {} };
   const deleteAccount = async (id: string) => { try { await deleteDoc(doc(db, 'accounts', id)); } catch(e) {} };
 
-  // --- Reset Data (Only for current store) ---
+  // --- Reset Data ---
   const resetData = async () => {
     if (!currentUser?.storeId) return;
     
-    const storeId = currentUser.storeId;
+    const storeId = safeId(currentUser.storeId);
     const collectionsToClear = ['products', 'contacts', 'invoices', 'expenses', 'bonds', 'accounts'];
     
     try {

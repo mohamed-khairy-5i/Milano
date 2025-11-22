@@ -27,7 +27,7 @@ interface AccountsProps {
 type AccountView = 'menu' | 'treasury' | 'opening-balance' | 'ledger' | 'final-accounts' | 'chart-of-accounts';
 
 const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
-  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount, deleteAccount } = useData();
+  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount, deleteAccount, storeName } = useData();
   const [currentView, setCurrentView] = useState<AccountView>('menu');
   
   // State for Sub-views
@@ -44,6 +44,13 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   };
   const currencyLabel = currencyLabels[currency];
 
+  // Map Codes to IDs for reliable lookups
+  const codeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    accounts.forEach(a => map[a.code] = a.id);
+    return map;
+  }, [accounts]);
+
   // --- LEDGER LOGIC ---
   const ledgerEntries = useMemo(() => {
     const entries: { 
@@ -56,6 +63,15 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
         creditAccount: string, 
         amount: number 
     }[] = [];
+
+    // IDs for standard accounts (fallback to empty string if not found to avoid crashes)
+    const ID_CASH = codeMap['1001'] || '';
+    const ID_BANK = codeMap['1002'] || '';
+    const ID_AR = codeMap['1100'] || ''; // Accounts Receivable
+    const ID_AP = codeMap['2000'] || ''; // Accounts Payable
+    const ID_SALES = codeMap['4000'] || '';
+    const ID_PURCHASES = codeMap['5000'] || '';
+    const ID_EXPENSES = codeMap['5100'] || '';
 
     // 1. Opening Balances
     accounts.forEach(acc => {
@@ -83,8 +99,8 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                 type: 'sale',
                 ref: inv.number,
                 desc: `${isRTL ? 'فاتورة مبيعات' : 'Sale Invoice'} - ${inv.contactName}`,
-                debitAccount: '1100', // AR
-                creditAccount: '4000', // Sales
+                debitAccount: ID_AR, 
+                creditAccount: ID_SALES, 
                 amount: inv.total
             });
         } else {
@@ -95,8 +111,8 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                 type: 'purchase',
                 ref: inv.number,
                 desc: `${isRTL ? 'فاتورة مشتريات' : 'Purchase Invoice'} - ${inv.contactName}`,
-                debitAccount: '5000', // Purchases
-                creditAccount: '2000', // AP
+                debitAccount: ID_PURCHASES, 
+                creditAccount: ID_AP, 
                 amount: inv.total
             });
         }
@@ -104,7 +120,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
 
     // 3. Bonds (Receipts & Payments)
     bonds.forEach(bond => {
-        const cashAccount = bond.paymentMethod === 'bank' ? '1002' : '1001';
+        const cashAccount = bond.paymentMethod === 'bank' ? ID_BANK : ID_CASH;
         if (bond.type === 'receipt') {
             // Dr Cash/Bank, Cr Customer (1100)
             entries.push({
@@ -114,7 +130,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                 ref: bond.number,
                 desc: `${isRTL ? 'سند قبض من' : 'Receipt from'} ${bond.entityName}`,
                 debitAccount: cashAccount,
-                creditAccount: '1100', // AR
+                creditAccount: ID_AR, 
                 amount: bond.amount
             });
         } else {
@@ -125,7 +141,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                 type: 'payment',
                 ref: bond.number,
                 desc: `${isRTL ? 'سند صرف لـ' : 'Payment to'} ${bond.entityName}`,
-                debitAccount: '2000', // AP
+                debitAccount: ID_AP, 
                 creditAccount: cashAccount,
                 amount: bond.amount
             });
@@ -141,14 +157,14 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
             type: 'expense',
             ref: '-',
             desc: `${isRTL ? 'مصروف' : 'Expense'}: ${exp.title}`,
-            debitAccount: '5100',
-            creditAccount: '1001',
+            debitAccount: ID_EXPENSES,
+            creditAccount: ID_CASH,
             amount: exp.amount
         });
     });
 
     return entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [invoices, bonds, expenses, accounts, isRTL]);
+  }, [invoices, bonds, expenses, accounts, isRTL, codeMap]);
 
   // --- HELPER: Get Ledger for Specific Account ---
   const getAccountLedger = (accountId: string) => {
@@ -191,7 +207,10 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   const handlePrintLedger = (accountId: string, e?: React.MouseEvent) => {
       if(e) e.stopPropagation();
       const account = accounts.find(a => a.id === accountId);
-      if (!account) return;
+      if (!account) {
+          alert(isRTL ? 'الحساب غير موجود' : 'Account not found');
+          return;
+      }
 
       const transactions = getAccountLedger(accountId);
       const printWindow = window.open('', '_blank', 'width=900,height=800');
@@ -285,7 +304,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       <body>
           <div class="header">
               <h2>${isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</h2>
-              <div>${isRTL ? 'ميلانو ستور' : 'Milano Store'}</div>
+              <div>${storeName}</div>
           </div>
           <table>
               <thead>
@@ -470,19 +489,23 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   );
 
   const renderLedger = (preSelectedAccount?: string) => {
-      const accountId = preSelectedAccount || selectedAccountId || accounts[0]?.id;
-      const transactions = getAccountLedger(accountId);
+      const accountId = selectedAccountId || preSelectedAccount || (accounts.length > 0 ? accounts[0].id : '');
+      const effectiveAccountId = accountId; // Just use accountId directly
+      const transactions = getAccountLedger(effectiveAccountId);
       
+      const handleAccountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+          setSelectedAccountId(e.target.value);
+      };
+
       return (
           <div className="space-y-6 animate-fade-in">
               <div className="flex flex-col md:flex-row gap-4 justify-between items-end md:items-center">
                   <div className="w-full md:w-1/3">
                       <label className="block text-sm font-medium mb-1">{isRTL ? 'الحساب' : 'Account'}</label>
                       <select 
-                        value={accountId}
-                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        value={effectiveAccountId}
+                        onChange={handleAccountChange}
                         className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        disabled={!!preSelectedAccount}
                       >
                           {accounts.map(acc => (
                               <option key={acc.id} value={acc.id}>{acc.code} - {acc.name}</option>
@@ -493,7 +516,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                   <div className="flex items-center gap-4">
                         {/* Print Ledger Button */}
                         <button 
-                            onClick={(e) => handlePrintLedger(accountId, e)}
+                            onClick={(e) => handlePrintLedger(effectiveAccountId, e)}
                             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg border border-gray-300 dark:border-gray-600 transition-colors"
                         >
                             <Printer size={18} />
@@ -564,7 +587,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       {isRTL ? 'الصندوق (النقدية)' : 'Cash Box'}
                   </h3>
-                  {renderLedger('1001')}
+                  {renderLedger(codeMap['1001'])}
               </div>
               
               {/* Bank */}
@@ -573,7 +596,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       {isRTL ? 'البنك' : 'Bank'}
                   </h3>
-                  {renderLedger('1002')}
+                  {renderLedger(codeMap['1002'])}
               </div>
           </div>
       </div>
@@ -587,9 +610,135 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       const expense = tb.filter(a => a.type === 'expense').reduce((s, a) => s + Math.abs(a.netBalance), 0);
       const netIncome = revenue - expense;
 
+      const handlePrintReport = () => {
+        const printWindow = window.open('', '_blank', 'width=1000,height=900');
+        if (!printWindow) return;
+
+        const direction = isRTL ? 'rtl' : 'ltr';
+        const textAlign = isRTL ? 'right' : 'left';
+
+        const htmlContent = `
+          <!DOCTYPE html>
+          <html dir="${direction}">
+          <head>
+              <title>${isRTL ? 'تقرير الإقفال السنوي' : 'Annual Closing Report'}</title>
+              <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+              <style>
+                  body { font-family: 'Cairo', sans-serif; background: white; padding: 40px; }
+                  .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                  .title { font-size: 24px; font-weight: bold; margin: 10px 0; }
+                  .store-name { font-size: 18px; color: #555; }
+                  .date { font-size: 14px; color: #777; margin-top: 5px; }
+                  
+                  .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin: 30px 0 15px 0; color: #333; }
+                  
+                  .summary-grid { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 40px; }
+                  .summary-card { flex: 1; padding: 20px; border: 1px solid #ddd; border-radius: 8px; text-align: center; background: #f9fafb; }
+                  .summary-label { font-size: 14px; font-weight: bold; color: #666; margin-bottom: 10px; }
+                  .summary-value { font-size: 20px; font-weight: bold; color: #000; }
+                  
+                  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+                  th { background: #f3f4f6; padding: 12px 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; color: #333; }
+                  td { padding: 10px; border-bottom: 1px solid #eee; color: #444; }
+                  tr:nth-child(even) { background-color: #fcfcfc; }
+                  
+                  .footer { margin-top: 80px; display: flex; justify-content: space-between; padding: 0 50px; }
+                  .signature { text-align: center; width: 200px; border-top: 1px solid #333; padding-top: 10px; font-weight: bold; }
+                  
+                  @media print { 
+                    button { display: none; } 
+                    body { padding: 0; }
+                  }
+                  .print-btn { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; border-radius: 5px; margin-bottom: 20px; }
+              </style>
+          </head>
+          <body>
+              <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}</button>
+              
+              <div class="header">
+                  <div class="store-name">${storeName}</div>
+                  <div class="title">${isRTL ? 'تقرير الحسابات الختامية والإقفال السنوي' : 'Final Accounts & Annual Closing Report'}</div>
+                  <div class="date">${isRTL ? 'تاريخ التقرير' : 'Report Date'}: ${new Date().toLocaleDateString()}</div>
+              </div>
+
+              <div class="section-title">${isRTL ? 'ملخص قائمة الدخل' : 'Income Statement Summary'}</div>
+              <div class="summary-grid">
+                  <div class="summary-card">
+                      <div class="summary-label">${isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}</div>
+                      <div class="summary-value" style="color: green;">${revenue.toLocaleString()} ${currencyLabel}</div>
+                  </div>
+                  <div class="summary-card">
+                      <div class="summary-label">${isRTL ? 'إجمالي المصروفات' : 'Total Expenses'}</div>
+                      <div class="summary-value" style="color: red;">${expense.toLocaleString()} ${currencyLabel}</div>
+                  </div>
+                  <div class="summary-card">
+                      <div class="summary-label">${isRTL ? 'صافي الربح / الخسارة' : 'Net Profit / Loss'}</div>
+                      <div class="summary-value" style="color: ${netIncome >= 0 ? 'blue' : 'orange'};">
+                          ${netIncome.toLocaleString()} ${currencyLabel}
+                      </div>
+                  </div>
+              </div>
+
+              <div class="section-title">${isRTL ? 'ميزان المراجعة التفصيلي' : 'Detailed Trial Balance'}</div>
+              <table>
+                  <thead>
+                      <tr>
+                          <th>${isRTL ? 'الكود' : 'Code'}</th>
+                          <th>${isRTL ? 'اسم الحساب' : 'Account Name'}</th>
+                          <th>${isRTL ? 'مدين' : 'Debit'}</th>
+                          <th>${isRTL ? 'دائن' : 'Credit'}</th>
+                          <th>${isRTL ? 'الرصيد' : 'Net Balance'}</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${tb.filter(a => a.totalDebit > 0 || a.totalCredit > 0).map(acc => `
+                          <tr>
+                              <td>${acc.code}</td>
+                              <td>${acc.name}</td>
+                              <td>${acc.totalDebit.toLocaleString()}</td>
+                              <td>${acc.totalCredit.toLocaleString()}</td>
+                              <td style="font-weight: bold; color: ${acc.netBalance >= 0 ? 'blue' : 'red'}">
+                                  ${acc.netBalance.toLocaleString()}
+                              </td>
+                          </tr>
+                      `).join('')}
+                  </tbody>
+                  <tfoot>
+                      <tr style="font-weight: bold; background: #f0f0f0;">
+                          <td colspan="2" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                          <td>${tb.reduce((s, a) => s + a.totalDebit, 0).toLocaleString()}</td>
+                          <td>${tb.reduce((s, a) => s + a.totalCredit, 0).toLocaleString()}</td>
+                          <td></td>
+                      </tr>
+                  </tfoot>
+              </table>
+
+              <div class="footer">
+                  <div class="signature">${isRTL ? 'المحاسب' : 'Accountant'}</div>
+                  <div class="signature">${isRTL ? 'المدير العام' : 'General Manager'}</div>
+              </div>
+          </body>
+          </html>
+        `;
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+      };
+
       return (
           <div className="space-y-8 animate-fade-in">
               
+              {/* Header and Print Button */}
+              <div className="flex justify-between items-center">
+                   <h2 className="text-2xl font-bold">{isRTL ? 'الحسابات الختامية' : 'Final Accounts'}</h2>
+                   <button 
+                        onClick={handlePrintReport}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
+                   >
+                       <Printer size={18} />
+                       <span className="font-bold">{isRTL ? 'طباعة تقرير الإقفال السنوي' : 'Print Annual Closing Report'}</span>
+                   </button>
+              </div>
+
               {/* Income Statement Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-xl border border-green-100 dark:border-green-800 text-center">

@@ -16,7 +16,8 @@ import {
   Menu,
   DollarSign,
   Calculator,
-  Settings
+  Settings,
+  Monitor // Icon for POS
 } from 'lucide-react';
 import { ViewState } from '../types';
 import { useData } from '../DataContext';
@@ -42,6 +43,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
   const allMenuItems = [
     { id: 'dashboard', label: isRTL ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard, allowed: true }, // Everyone sees dashboard
     
+    // POS (First option under Dashboard as requested)
+    { id: 'pos', label: isRTL ? 'نقطة بيع (كاشير)' : 'Point of Sale', icon: Monitor, allowed: can('canSell') },
+
     // Contacts
     { id: 'customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users, allowed: can('canManageContacts') },
     { id: 'suppliers', label: isRTL ? 'الموردين' : 'Suppliers', icon: Truck, allowed: can('canManageContacts') },
