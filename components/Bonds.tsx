@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Filter, Trash2, FileText, Search, Printer } from 'lucide-react';
+import { Plus, Filter, Trash2, FileText, Search, Printer, Edit } from 'lucide-react';
 import { Bond } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -10,8 +10,11 @@ interface BondsProps {
 }
 
 const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
-  const { bonds, contacts, addBond, deleteBond, currency } = useData();
+  const { bonds, contacts, addBond, updateBond, deleteBond, currency } = useData();
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,24 +41,8 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     b.entityName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = () => {
-    if (!newBondData.amount || !newBondData.entityId) return;
-
-    const selectedContact = contacts.find(c => c.id === newBondData.entityId);
-
-    addBond({
-      number: `BOND-${Date.now().toString().substr(-4)}`,
-      type: newBondData.type,
-      date: newBondData.date,
-      entityType: newBondData.entityType,
-      entityId: newBondData.entityId,
-      entityName: selectedContact?.name || 'Unknown',
-      amount: Number(newBondData.amount),
-      paymentMethod: newBondData.paymentMethod,
-      notes: newBondData.notes
-    });
-
-    setIsModalOpen(false);
+  const handleOpenAdd = () => {
+    setEditingId(null);
     setNewBondData({
         type: 'receipt',
         date: new Date().toISOString().split('T')[0],
@@ -65,6 +52,63 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
         paymentMethod: 'cash',
         notes: ''
     });
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (bond: Bond) => {
+    setEditingId(bond.id);
+    setNewBondData({
+        type: bond.type,
+        date: bond.date,
+        entityType: bond.entityType,
+        entityId: bond.entityId,
+        amount: bond.amount.toString(),
+        paymentMethod: bond.paymentMethod,
+        notes: bond.notes || ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!newBondData.amount || !newBondData.entityId) return;
+
+    const selectedContact = contacts.find(c => c.id === newBondData.entityId);
+
+    if (editingId) {
+        // Update
+        const originalBond = bonds.find(b => b.id === editingId);
+        if (originalBond) {
+            updateBond({
+                id: editingId,
+                storeId: originalBond.storeId,
+                number: originalBond.number || '',
+                type: newBondData.type,
+                date: newBondData.date,
+                entityType: newBondData.entityType,
+                entityId: newBondData.entityId,
+                entityName: selectedContact?.name || 'Unknown',
+                amount: Number(newBondData.amount),
+                paymentMethod: newBondData.paymentMethod,
+                notes: newBondData.notes
+            });
+        }
+    } else {
+        // Create
+        addBond({
+          number: `BOND-${Date.now().toString().substr(-4)}`,
+          type: newBondData.type,
+          date: newBondData.date,
+          entityType: newBondData.entityType,
+          entityId: newBondData.entityId,
+          entityName: selectedContact?.name || 'Unknown',
+          amount: Number(newBondData.amount),
+          paymentMethod: newBondData.paymentMethod,
+          notes: newBondData.notes
+        });
+    }
+
+    setIsModalOpen(false);
+    setEditingId(null);
   };
 
   const handleDelete = (id: string) => {
@@ -208,7 +252,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
             </div>
 
             <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleOpenAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
             >
                 <Plus size={18} />
@@ -233,7 +277,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {filteredBonds.map((bond) => (
-                    <tr key={bond.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <tr key={bond.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                             {bond.number}
                         </td>
@@ -266,6 +310,13 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                          <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
+                                    onClick={() => handleEdit(bond)}
+                                    className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
+                                    title={isRTL ? 'تعديل' : 'Edit'}
+                                >
+                                    <Edit size={16} />
+                                </button>
+                                <button 
                                     onClick={() => handlePrint(bond)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
@@ -297,7 +348,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isRTL ? 'إنشاء سند جديد' : 'Create New Bond'}
+        title={editingId ? (isRTL ? 'تعديل سند' : 'Edit Bond') : (isRTL ? 'إنشاء سند جديد' : 'Create New Bond')}
         isRTL={isRTL}
         footer={
             <>
@@ -310,7 +361,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
             </>
         }
       >
-         {/* Modal Form - Same as before */}
+         {/* Modal Form */}
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

@@ -1,7 +1,32 @@
 
 // Global Types
 
-export interface Product {
+export interface UserPermissions {
+  canSell: boolean;         // POS & Invoices
+  canManageStock: boolean;  // Inventory & Stock
+  canManageContacts: boolean; // Customers & Suppliers
+  canManageAccounting: boolean; // Bonds, Expenses, Accounts
+  canViewReports: boolean;
+  canManageSettings: boolean; // Add users, change settings
+}
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  password: string; // In real app, this should be hashed
+  role: 'admin' | 'user';
+  storeId: string; // Critical for data isolation
+  permissions: UserPermissions;
+  createdAt?: string;
+}
+
+// Base interface for all data types to ensure they belong to a store
+interface StoreData {
+  storeId: string;
+}
+
+export interface Product extends StoreData {
   id: string;
   code: string;
   name: string;
@@ -17,7 +42,7 @@ export interface Product {
   description?: string;
 }
 
-export interface Contact {
+export interface Contact extends StoreData {
   id: string;
   name: string;
   phone: string;
@@ -40,7 +65,7 @@ export interface InvoiceItem {
   total: number;
 }
 
-export interface Invoice {
+export interface Invoice extends StoreData {
   id: string;
   number: string;
   date: string;
@@ -49,7 +74,7 @@ export interface Invoice {
   contactId: string;
   total: number;
   tax: number;
-  status: 'paid' | 'pending' | 'cancelled' | 'credit'; // Added 'credit' for Ajel
+  status: 'paid' | 'pending' | 'cancelled' | 'credit';
   type: 'sale' | 'purchase';
   itemsCount: number;
   items?: InvoiceItem[];
@@ -58,10 +83,10 @@ export interface Invoice {
   notes?: string;
 }
 
-export interface Bond {
+export interface Bond extends StoreData {
   id: string;
   number: string;
-  type: 'receipt' | 'payment'; // receipt = قبض, payment = صرف
+  type: 'receipt' | 'payment';
   date: string;
   entityType: 'customer' | 'supplier';
   entityId: string;
@@ -71,7 +96,7 @@ export interface Bond {
   notes?: string;
 }
 
-export interface Expense {
+export interface Expense extends StoreData {
   id: string;
   title: string;
   amount: number;
@@ -80,7 +105,10 @@ export interface Expense {
   description?: string;
 }
 
-export interface CartItem extends Product {
+export interface CartItem {
+  id: string;
+  name: string;
+  priceSell: number;
   quantity: number;
 }
 
@@ -92,22 +120,14 @@ export interface Stats {
   profit: number;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  username: string;
-  password: string; // In real app, this should be hashed
-  role: 'admin' | 'user';
-}
-
-export interface Account {
+export interface Account extends StoreData {
   id: string;
   code: string;
   name: string;
   type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
   openingBalance: number;
   description?: string;
-  systemAccount?: boolean; // Cannot be deleted if true
+  systemAccount?: boolean;
 }
 
 export type ViewState = 
@@ -120,7 +140,7 @@ export type ViewState =
   | 'suppliers' 
   | 'expenses'
   | 'stock'
-  | 'accounting' // This is Bonds
-  | 'accounts'   // This is the new Accounts Management (Ledger, Chart of Accounts, etc.)
+  | 'accounting'
+  | 'accounts'
   | 'reports'
   | 'settings';

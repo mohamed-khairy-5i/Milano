@@ -15,9 +15,11 @@ import {
   ChevronLeft,
   Menu,
   DollarSign,
-  Calculator
+  Calculator,
+  Settings
 } from 'lucide-react';
 import { ViewState } from '../types';
+import { useData } from '../DataContext';
 
 interface SidebarProps {
   activeView: ViewState;
@@ -30,19 +32,41 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCollapsed = false, toggleCollapse, onClose, onLogout }) => {
-  const menuItems = [
-    { id: 'dashboard', label: isRTL ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard },
-    { id: 'customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users },
-    { id: 'suppliers', label: isRTL ? 'الموردين' : 'Suppliers', icon: Truck },
-    { id: 'inventory', label: isRTL ? 'المنتجات' : 'Products', icon: Package },
-    { id: 'stock', label: isRTL ? 'إدارة المخزون' : 'Stock Mgmt', icon: Warehouse },
-    { id: 'invoices', label: isRTL ? 'المبيعات' : 'Sales', icon: ShoppingCart }, 
-    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag },
-    { id: 'accounting', label: isRTL ? 'السندات' : 'Bonds', icon: FileText }, 
-    { id: 'expenses', label: isRTL ? 'المصروفات' : 'Expenses', icon: DollarSign },
-    { id: 'accounts', label: isRTL ? 'إدارة الحسابات' : 'Accounts', icon: Calculator },
-    { id: 'reports', label: isRTL ? 'التقارير' : 'Reports', icon: BarChart3 },
+  const { currentUser } = useData();
+  const permissions = currentUser?.permissions;
+
+  // Helper to check permission
+  const can = (perm: keyof typeof permissions) => permissions ? permissions[perm] : false;
+
+  // Base Menu
+  const allMenuItems = [
+    { id: 'dashboard', label: isRTL ? 'لوحة التحكم' : 'Dashboard', icon: LayoutDashboard, allowed: true }, // Everyone sees dashboard
+    
+    // Contacts
+    { id: 'customers', label: isRTL ? 'العملاء' : 'Customers', icon: Users, allowed: can('canManageContacts') },
+    { id: 'suppliers', label: isRTL ? 'الموردين' : 'Suppliers', icon: Truck, allowed: can('canManageContacts') },
+    
+    // Inventory
+    { id: 'inventory', label: isRTL ? 'المنتجات' : 'Products', icon: Package, allowed: can('canManageStock') },
+    { id: 'stock', label: isRTL ? 'إدارة المخزون' : 'Stock Mgmt', icon: Warehouse, allowed: can('canManageStock') },
+    
+    // Sales & Purchases
+    { id: 'invoices', label: isRTL ? 'المبيعات' : 'Sales', icon: ShoppingCart, allowed: can('canSell') }, 
+    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag, allowed: can('canSell') },
+    
+    // Accounting
+    { id: 'accounting', label: isRTL ? 'السندات' : 'Bonds', icon: FileText, allowed: can('canManageAccounting') }, 
+    { id: 'expenses', label: isRTL ? 'المصروفات' : 'Expenses', icon: DollarSign, allowed: can('canManageAccounting') },
+    { id: 'accounts', label: isRTL ? 'إدارة الحسابات' : 'Accounts', icon: Calculator, allowed: can('canManageAccounting') },
+    
+    // Reports
+    { id: 'reports', label: isRTL ? 'التقارير' : 'Reports', icon: BarChart3, allowed: can('canViewReports') },
+    
+    // Settings
+    { id: 'settings', label: isRTL ? 'الإعدادات' : 'Settings', icon: Settings, allowed: can('canManageSettings') },
   ];
+
+  const menuItems = allMenuItems.filter(item => item.allowed);
 
   const handleItemClick = (id: string) => {
     onChangeView(id as ViewState);
@@ -82,6 +106,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
             }
         </button>
       </div>
+
+      {/* User Info Compact */}
+      {!isCollapsed && currentUser && (
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="text-xs text-gray-500">{isRTL ? 'المستخدم الحالي' : 'Current User'}</div>
+            <div className="font-bold text-sm truncate">{currentUser.name}</div>
+            <div className="text-xs text-primary truncate">{currentUser.role === 'admin' ? (isRTL ? 'مدير' : 'Admin') : (isRTL ? 'موظف' : 'Employee')}</div>
+        </div>
+      )}
 
       {/* Menu Items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 custom-scrollbar">

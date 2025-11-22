@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plus, Eye, Trash2, Printer, Filter, Search } from 'lucide-react';
+import { Plus, Eye, Trash2, Printer, Filter, Search, Edit } from 'lucide-react';
 import { Invoice, InvoiceItem } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -11,17 +11,19 @@ interface InvoicesProps {
 }
 
 const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
-  const { invoices, contacts, products, addInvoice, deleteInvoice, currency } = useData();
+  const { invoices, contacts, products, addInvoice, updateInvoice, deleteInvoice, currency } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Labels
   const pageTitle = type === 'sale' ? (isRTL ? 'المبيعات' : 'Sales') : (isRTL ? 'المشتريات' : 'Purchases');
   const createBtnLabel = type === 'sale' ? (isRTL ? 'إنشاء فاتورة بيع' : 'Create Sale Invoice') : (isRTL ? 'إنشاء فاتورة شراء' : 'Create Purchase Invoice');
+  const editBtnLabel = type === 'sale' ? (isRTL ? 'تعديل فاتورة بيع' : 'Edit Sale Invoice') : (isRTL ? 'تعديل فاتورة شراء' : 'Edit Purchase Invoice');
   const contactLabel = type === 'sale' ? (isRTL ? 'العميل' : 'Customer') : (isRTL ? 'المورد' : 'Supplier');
   const selectContactLabel = type === 'sale' ? (isRTL ? 'اختر عميل' : 'Select Customer') : (isRTL ? 'اختر مورد' : 'Select Supplier');
   const priceLabel = type === 'sale' ? (isRTL ? 'سعر البيع' : 'Selling Price') : (isRTL ? 'سعر التكلفة' : 'Cost Price');
 
-  // Create Modal State
+  // State
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newInvoiceData, setNewInvoiceData] = useState<{
     contactId: string;
@@ -38,7 +40,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     dueDate: new Date().toISOString().split('T')[0],
     items: [],
     tax: 0,
-    status: 'paid', // Default to Paid
+    status: 'paid', 
     notes: '',
     currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
   });
@@ -58,6 +60,42 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         'USD': isRTL ? 'دولار' : 'USD',
     };
     return `${val.toLocaleString()} ${currencyLabels[currency]}`;
+  };
+
+  const handleOpenAdd = () => {
+      setEditingId(null);
+      setNewInvoiceData({
+        contactId: '',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
+        items: [],
+        tax: 0,
+        status: 'paid',
+        notes: '',
+        currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
+      });
+      setIsModalOpen(true);
+  };
+
+  const handleEdit = (invoice: Invoice) => {
+    setEditingId(invoice.id);
+    setNewInvoiceData({
+        contactId: invoice.contactId,
+        date: invoice.date,
+        dueDate: invoice.dueDate || invoice.date,
+        items: invoice.items?.map(i => ({
+            productId: i.productId,
+            productName: i.productName,
+            quantity: i.quantity,
+            price: i.price,
+            discount: i.discount || 0
+        })) || [],
+        tax: invoice.tax,
+        status: invoice.status === 'cancelled' ? 'pending' : invoice.status as any,
+        notes: invoice.notes || '',
+        currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
+    });
+    setIsModalOpen(true);
   };
 
   const handleAddLineItem = () => {
@@ -83,17 +121,14 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     
     const prefix = type === 'sale' ? 'INV' : 'PUR';
 
-    // Determine Paid/Remaining based on selected status
     let paidAmount = 0;
     if (newInvoiceData.status === 'paid') {
         paidAmount = total;
     } else {
-        // for 'credit' or 'pending'
         paidAmount = 0; 
     }
     const remainingAmount = total - paidAmount;
 
-    // Prepare items for saving
     const savedItems: InvoiceItem[] = newInvoiceData.items.map(item => ({
         productId: item.productId,
         productName: item.productName,
@@ -103,35 +138,49 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         total: (item.quantity * item.price) - item.discount
     }));
 
-    addInvoice({
-      number: `${prefix}-${Date.now().toString().substr(-4)}`, 
-      date: newInvoiceData.date,
-      dueDate: newInvoiceData.dueDate,
-      contactName: selectedContact?.name || 'Unknown',
-      contactId: newInvoiceData.contactId,
-      total: total,
-      paidAmount: paidAmount, 
-      remainingAmount: remainingAmount,
-      tax: newInvoiceData.tax,
-      status: newInvoiceData.status,
-      type: type,
-      itemsCount: newInvoiceData.items.length,
-      items: savedItems,
-      notes: newInvoiceData.notes
-    });
+    if (editingId) {
+        const existingInvoice = invoices.find(i => i.id === editingId);
+        if (existingInvoice) {
+            updateInvoice({
+                id: editingId,
+                storeId: existingInvoice.storeId,
+                number: existingInvoice.number || '',
+                date: newInvoiceData.date,
+                dueDate: newInvoiceData.dueDate,
+                contactName: selectedContact?.name || 'Unknown',
+                contactId: newInvoiceData.contactId,
+                total: total,
+                paidAmount: paidAmount, 
+                remainingAmount: remainingAmount,
+                tax: newInvoiceData.tax,
+                status: newInvoiceData.status,
+                type: type,
+                itemsCount: newInvoiceData.items.length,
+                items: savedItems,
+                notes: newInvoiceData.notes
+            });
+        }
+    } else {
+        addInvoice({
+            number: `${prefix}-${Date.now().toString().substr(-4)}`, 
+            date: newInvoiceData.date,
+            dueDate: newInvoiceData.dueDate,
+            contactName: selectedContact?.name || 'Unknown',
+            contactId: newInvoiceData.contactId,
+            total: total,
+            paidAmount: paidAmount, 
+            remainingAmount: remainingAmount,
+            tax: newInvoiceData.tax,
+            status: newInvoiceData.status,
+            type: type,
+            itemsCount: newInvoiceData.items.length,
+            items: savedItems,
+            notes: newInvoiceData.notes
+        });
+    }
 
     setIsModalOpen(false);
-    // Reset state
-    setNewInvoiceData({
-      contactId: '',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: new Date().toISOString().split('T')[0],
-      items: [],
-      tax: 0,
-      status: 'paid',
-      notes: '',
-      currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
-    });
+    setEditingId(null);
   };
 
   const handleDelete = (id: string) => {
@@ -141,7 +190,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
   };
 
   const handlePrint = (invoice: Invoice) => {
-      // Find contact details
+      // ... existing print logic ...
       const contact = contacts.find(c => c.id === invoice.contactId);
       const contactPhone = contact?.phone || '';
       const contactAddress = contact?.address || '';
@@ -312,7 +361,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             </div>
 
             <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleOpenAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
             >
                 <Plus size={18} />
@@ -338,7 +387,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {filteredInvoices.map((invoice) => (
-                    <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                             {invoice.number}
                         </td>
@@ -372,6 +421,13 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                         <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
+                                    onClick={() => handleEdit(invoice)}
+                                    className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
+                                    title={isRTL ? 'تعديل' : 'Edit'}
+                                >
+                                    <Edit size={16} />
+                                </button>
+                                <button 
                                     onClick={() => handlePrint(invoice)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
@@ -400,11 +456,11 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         </table>
       </div>
 
-      {/* Create Invoice Modal */}
+      {/* Create/Edit Invoice Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={createBtnLabel}
+        title={editingId ? editBtnLabel : createBtnLabel}
         isRTL={isRTL}
         footer={
             <>
@@ -538,6 +594,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                                     <th className="px-3 py-2">{isRTL ? 'الكمية' : 'Qty'}</th>
                                     <th className="px-3 py-2">{isRTL ? 'السعر' : 'Price'}</th>
                                     <th className="px-3 py-2">{isRTL ? 'الإجمالي' : 'Total'}</th>
+                                    <th className="px-3 py-2 w-10"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -548,6 +605,18 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                                             <td className="px-3 py-2">{item.quantity}</td>
                                             <td className="px-3 py-2">{item.price}</td>
                                             <td className="px-3 py-2">{(item.quantity * item.price) - item.discount}</td>
+                                            <td className="px-3 py-2 text-center">
+                                                <button 
+                                                    onClick={() => {
+                                                        const updatedItems = [...newInvoiceData.items];
+                                                        updatedItems.splice(idx, 1);
+                                                        setNewInvoiceData({...newInvoiceData, items: updatedItems});
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })}

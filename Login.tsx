@@ -4,12 +4,12 @@ import { Lock, User, LogIn, UserPlus, ArrowRight } from 'lucide-react';
 import { useData } from './DataContext';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: () => void; // Kept for prop compatibility but mostly handled internally now
   isRTL: boolean;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
-  const { validateUser, registerUser } = useData();
+  const { loginUser, registerStore } = useData();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -29,7 +29,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
 
     try {
       if (isRegistering) {
-          // Register Logic
+          // Register Logic (New Store)
           if (!name || !username || !password || !confirmPassword) {
               setError(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
               setIsLoading(false);
@@ -41,31 +41,30 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
               return;
           }
 
-          // Added await here to wait for Firebase response
-          const result = await registerUser({
+          const result = await registerStore({
               name,
               username,
               password,
-              role: 'user' // Default role
+              role: 'admin' // External registration is always Admin of their own store
           });
 
           if (result.success) {
-              setSuccessMsg(isRTL ? 'تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.' : 'Account created successfully! You can login now.');
+              setSuccessMsg(isRTL ? 'تم إنشاء متجرك الجديد بنجاح! يمكنك تسجيل الدخول الآن.' : 'New store created successfully! You can login now.');
               // Clear form and switch to login
               setName('');
               setUsername('');
               setPassword('');
               setConfirmPassword('');
-              setTimeout(() => setIsRegistering(false), 1500);
+              setTimeout(() => setIsRegistering(false), 2000);
           } else {
               setError(isRTL ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists');
           }
 
       } else {
           // Login Logic
-          // Validate user is synchronous because it checks the loaded array
-          if (validateUser(username, password)) {
-              onLogin();
+          const result = await loginUser(username, password);
+          if (result.success) {
+              // Auth state update in context triggers re-render in App
           } else {
               setError(isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password');
           }
@@ -94,7 +93,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Milano Store</h1>
             <p className="text-gray-500 dark:text-gray-400">
               {isRegistering 
-                ? (isRTL ? 'إنشاء حساب جديد' : 'Create New Account')
+                ? (isRTL ? 'إنشاء متجر جديد (حساب رئيسي)' : 'Create New Store (Admin Account)')
                 : (isRTL ? 'يرجى تسجيل الدخول للمتابعة' : 'Please sign in to continue')
               }
             </p>
@@ -199,7 +198,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
                 <span>{isRTL ? 'جاري المعالجة...' : 'Processing...'}</span>
               ) : (
                 isRegistering 
-                  ? <><UserPlus size={20} /> <span>{isRTL ? 'إنشاء الحساب' : 'Create Account'}</span></>
+                  ? <><UserPlus size={20} /> <span>{isRTL ? 'إنشاء حساب متجر' : 'Create Store Account'}</span></>
                   : <><LogIn size={20} /> <span>{isRTL ? 'دخول' : 'Sign In'}</span></>
               )}
             </button>
@@ -207,13 +206,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
 
           <div className="mt-6 text-center pt-4 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                {isRegistering ? (isRTL ? 'لديك حساب بالفعل؟' : 'Already have an account?') : (isRTL ? 'ليس لديك حساب؟' : "Don't have an account?")}
+                {isRegistering ? (isRTL ? 'لديك حساب بالفعل؟' : 'Already have an account?') : (isRTL ? 'متجر جديد؟' : "New Store?")}
             </p>
             <button 
                 onClick={toggleMode}
                 className="text-primary hover:text-blue-700 font-bold text-sm flex items-center justify-center gap-1 mx-auto"
             >
-                {isRegistering ? (isRTL ? 'تسجيل الدخول' : 'Sign In') : (isRTL ? 'إنشاء حساب جديد' : 'Create New Account')}
+                {isRegistering ? (isRTL ? 'تسجيل الدخول' : 'Sign In') : (isRTL ? 'إنشاء حساب جديد (متجر مستقل)' : 'Create New Account (Fresh Store)')}
                 <ArrowRight size={16} className={isRTL ? 'rotate-180' : ''} />
             </button>
           </div>

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product, Contact, Invoice, Expense, Bond, User, Account } from './types';
+import { Product, Contact, Invoice, Expense, Bond, User, Account, UserPermissions } from './types';
 import { db } from './firebase';
 import { 
   collection, 
@@ -10,6 +10,7 @@ import {
   deleteDoc, 
   doc, 
   query, 
+  where,
   writeBatch,
   getDocs 
 } from 'firebase/firestore';
@@ -17,6 +18,7 @@ import {
 export type Currency = 'YER' | 'SAR' | 'USD';
 
 interface DataContextType {
+  currentUser: User | null;
   products: Product[];
   contacts: Contact[];
   invoices: Invoice[];
@@ -27,75 +29,80 @@ interface DataContextType {
   setCurrency: (c: Currency) => void;
   
   // User Management
-  users: User[];
-  registerUser: (user: Omit<User, 'id'>) => Promise<{ success: boolean; message?: string }>;
-  validateUser: (username: string, password: string) => boolean;
+  users: User[]; // List of employees for the current store
+  registerStore: (user: Omit<User, 'id' | 'storeId' | 'permissions'>) => Promise<{ success: boolean; message?: string }>;
+  addEmployee: (user: Omit<User, 'id' | 'storeId'>) => Promise<{ success: boolean; message?: string }>;
+  loginUser: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  logoutUser: () => void;
+  deleteUser: (id: string) => Promise<void>;
 
-  addProduct: (product: Omit<Product, 'id'>) => void;
+  addProduct: (product: Omit<Product, 'id' | 'storeId'>) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
 
-  addContact: (contact: Omit<Contact, 'id'>) => void;
+  addContact: (contact: Omit<Contact, 'id' | 'storeId'>) => void;
   updateContact: (contact: Contact) => void;
   deleteContact: (id: string) => void;
 
-  addInvoice: (invoice: Omit<Invoice, 'id'>) => void;
+  addInvoice: (invoice: Omit<Invoice, 'id' | 'storeId'>) => void;
+  updateInvoice: (invoice: Invoice) => void;
   deleteInvoice: (id: string) => void;
 
-  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'storeId'>) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
 
-  addBond: (bond: Omit<Bond, 'id'>) => void;
+  addBond: (bond: Omit<Bond, 'id' | 'storeId'>) => void;
+  updateBond: (bond: Bond) => void;
   deleteBond: (id: string) => void;
 
-  addAccount: (account: Omit<Account, 'id'>) => void;
+  addAccount: (account: Omit<Account, 'id' | 'storeId'>) => void;
   updateAccount: (account: Account) => void;
+  deleteAccount: (id: string) => void;
 
   resetData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const DEFAULT_ADMIN: Omit<User, 'id'> = {
-    name: 'مدير النظام',
-    username: 'admin',
-    password: '123',
-    role: 'admin'
+const DEFAULT_PERMISSIONS: UserPermissions = {
+  canSell: true,
+  canManageStock: true,
+  canManageContacts: true,
+  canManageAccounting: true,
+  canViewReports: true,
+  canManageSettings: true
 };
 
-const DEFAULT_ACCOUNTS: Omit<Account, 'id'>[] = [
-  // Assets
+// Default Accounts Template for new stores
+const DEFAULT_ACCOUNTS_TEMPLATE = [
   { code: '1001', name: 'الصندوق (النقدية)', type: 'asset', openingBalance: 0, systemAccount: true },
   { code: '1002', name: 'البنك', type: 'asset', openingBalance: 0, systemAccount: true },
   { code: '1100', name: 'العملاء (ذمم مدينة)', type: 'asset', openingBalance: 0, systemAccount: true },
   { code: '1200', name: 'المخزون', type: 'asset', openingBalance: 0, systemAccount: true },
-  
-  // Liabilities
   { code: '2000', name: 'الموردين (ذمم دائنة)', type: 'liability', openingBalance: 0, systemAccount: true },
-  
-  // Equity
   { code: '3000', name: 'رأس المال', type: 'equity', openingBalance: 0, systemAccount: true },
-  
-  // Revenue
   { code: '4000', name: 'المبيعات', type: 'revenue', openingBalance: 0, systemAccount: true },
-  
-  // Expenses
   { code: '5000', name: 'المشتريات (تكلفة البضاعة)', type: 'expense', openingBalance: 0, systemAccount: true },
   { code: '5100', name: 'مصروفات عامة', type: 'expense', openingBalance: 0, systemAccount: true },
 ];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // State
+  // Auth State
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('milano_user_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Data State
   const [products, setProducts] = useState<Product[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // Employees of current store
   
-  // Currency is local preference for now, could be synced if needed
   const [currency, setCurrencyState] = useState<Currency>(() => {
     return (localStorage.getItem('milano_currency') as Currency) || 'YER';
   });
@@ -105,24 +112,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('milano_currency', c);
   };
 
-  // --- FIRESTORE SUBSCRIPTIONS ---
+  // Persist User Session
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('milano_user_session', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('milano_user_session');
+      // Clear data when logged out
+      setProducts([]);
+      setContacts([]);
+      setInvoices([]);
+      setExpenses([]);
+      setBonds([]);
+      setAccounts([]);
+      setUsers([]);
+    }
+  }, [currentUser]);
 
-  // Helper to subscribe to a collection with error handling
-  const subscribe = <T,>(collectionName: string, setState: React.Dispatch<React.SetStateAction<T[]>>) => {
-    const q = query(collection(db, collectionName));
-    return onSnapshot(q, 
-      (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
-        setState(data);
-      },
-      (error) => {
-        console.warn(`Firestore: Access denied to collection '${collectionName}'. Please check Firebase Security Rules.`);
-        // We don't throw here to prevent app crash
-      }
-    );
-  };
+  // --- FIRESTORE SUBSCRIPTIONS (Isolated by storeId) ---
 
   useEffect(() => {
+    if (!currentUser?.storeId) return;
+
+    const storeId = currentUser.storeId;
+
+    const subscribe = <T,>(collectionName: string, setState: React.Dispatch<React.SetStateAction<T[]>>) => {
+      // IMPORTANT: Only fetch data for this specific storeId
+      const q = query(collection(db, collectionName), where('storeId', '==', storeId));
+      return onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
+        setState(data);
+      }, (error) => console.error(`Error fetching ${collectionName}:`, error));
+    };
+
     const unsubProducts = subscribe<Product>('products', setProducts);
     const unsubContacts = subscribe<Contact>('contacts', setContacts);
     const unsubInvoices = subscribe<Invoice>('invoices', setInvoices);
@@ -140,133 +162,189 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       unsubAccounts();
       unsubUsers();
     };
-  }, []);
+  }, [currentUser?.storeId]);
 
-  // --- User Management ---
-  const registerUser = async (userData: Omit<User, 'id'>) => {
-      try {
-        // Note: checking against local 'users' array might be empty if offline/permission denied.
-        // Ideally, use a direct query or Firebase Auth.
-        if (users.some(u => u.username === userData.username)) {
-            return { success: false, message: 'User already exists' };
+
+  // --- AUTH & USER MANAGEMENT ---
+
+  // 1. Register New Store (External Sign Up)
+  const registerStore = async (userData: Omit<User, 'id' | 'storeId' | 'permissions'>) => {
+    try {
+      // Check if username exists globally
+      const q = query(collection(db, 'users'), where('username', '==', userData.username));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return { success: false, message: 'Username already taken' };
+      }
+
+      // Generate a new unique Store ID
+      const newStoreId = `STORE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const newUser: Omit<User, 'id'> = {
+        ...userData,
+        role: 'admin',
+        storeId: newStoreId,
+        permissions: DEFAULT_PERMISSIONS,
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'users'), newUser);
+      
+      // Seed Default Accounts for this new store
+      const batch = writeBatch(db);
+      DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
+        const docRef = doc(collection(db, 'accounts'));
+        batch.set(docRef, { ...acc, storeId: newStoreId });
+      });
+      await batch.commit();
+
+      return { success: true };
+    } catch (error) {
+      console.error("Registration error:", error);
+      return { success: false, message: 'Database error' };
+    }
+  };
+
+  // 2. Add Employee (Internal - Settings)
+  const addEmployee = async (userData: Omit<User, 'id' | 'storeId'>) => {
+    if (!currentUser) return { success: false, message: 'Not logged in' };
+    
+    try {
+        // Check username uniqueness
+        const q = query(collection(db, 'users'), where('username', '==', userData.username));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            return { success: false, message: 'Username already exists' };
         }
-        await addDoc(collection(db, 'users'), userData);
+
+        const newEmployee: Omit<User, 'id'> = {
+            ...userData,
+            storeId: currentUser.storeId, // Bind to current store
+            createdAt: new Date().toISOString()
+        };
+
+        await addDoc(collection(db, 'users'), newEmployee);
         return { success: true };
-      } catch (error) {
-        console.error("Registration error:", error);
-        return { success: false, message: 'Database connection error' };
+    } catch (error) {
+        console.error("Add employee error:", error);
+        return { success: false, message: 'Failed to add employee' };
+    }
+  };
+
+  // 3. Login
+  const loginUser = async (username: string, password: string) => {
+    try {
+      const q = query(collection(db, 'users'), where('username', '==', username), where('password', '==', password));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        // Legacy Fallback (For existing users before storeId update or admin backdoor)
+        if (username === 'admin' && password === '123') {
+            // Create a dummy admin session for legacy/fallback
+            const dummyAdmin: User = {
+                id: 'legacy-admin',
+                name: 'مدير النظام',
+                username: 'admin',
+                password: '123',
+                role: 'admin',
+                storeId: 'main-store', // Default bucket for legacy
+                permissions: DEFAULT_PERMISSIONS
+            };
+            setCurrentUser(dummyAdmin);
+            return { success: true };
+        }
+        return { success: false, message: 'Invalid credentials' };
       }
+
+      const userData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
+      setCurrentUser(userData);
+      return { success: true };
+    } catch (error) {
+      console.error("Login error:", error);
+      return { success: false, message: 'Connection error' };
+    }
   };
 
-  const validateUser = (username: string, password: string) => {
-      // Check seeded default admin explicitly (Backdoor for initial setup)
-      if (username === 'admin' && password === '123') {
-          return true; 
-      }
-      return users.some(u => u.username === username && u.password === password);
+  const logoutUser = () => {
+    setCurrentUser(null);
   };
 
-  // --- Products ---
-  const addProduct = async (product: Omit<Product, 'id'>) => {
-    try { await addDoc(collection(db, 'products'), product); } catch(e) { console.error(e); }
+  const deleteUser = async (id: string) => {
+      try {
+          await deleteDoc(doc(db, 'users', id));
+      } catch (e) { console.error(e); }
   };
 
+  // --- DATA OPERATIONS (Inject storeId automatically) ---
+
+  const addWithStoreId = async (collectionName: string, data: any) => {
+      if (!currentUser?.storeId) return;
+      try {
+          await addDoc(collection(db, collectionName), { ...data, storeId: currentUser.storeId });
+      } catch (e) { console.error(e); }
+  };
+
+  const addProduct = (product: Omit<Product, 'id' | 'storeId'>) => addWithStoreId('products', product);
+  const addContact = (contact: Omit<Contact, 'id' | 'storeId'>) => addWithStoreId('contacts', contact);
+  const addInvoice = (invoice: Omit<Invoice, 'id' | 'storeId'>) => addWithStoreId('invoices', invoice);
+  const addExpense = (expense: Omit<Expense, 'id' | 'storeId'>) => addWithStoreId('expenses', expense);
+  const addBond = (bond: Omit<Bond, 'id' | 'storeId'>) => addWithStoreId('bonds', bond);
+  const addAccount = (account: Omit<Account, 'id' | 'storeId'>) => addWithStoreId('accounts', account);
+
+  // Updates & Deletes (Standard by ID)
   const updateProduct = async (product: Product) => {
     const { id, ...data } = product;
     try { await updateDoc(doc(db, 'products', id), data as any); } catch(e) { console.error(e); }
   };
+  const deleteProduct = async (id: string) => { try { await deleteDoc(doc(db, 'products', id)); } catch(e) {} };
 
-  const deleteProduct = async (id: string) => {
-    try { await deleteDoc(doc(db, 'products', id)); } catch(e) { console.error(e); }
-  };
+  const updateContact = async (contact: Contact) => { const { id, ...data } = contact; try { await updateDoc(doc(db, 'contacts', id), data as any); } catch(e) {} };
+  const deleteContact = async (id: string) => { try { await deleteDoc(doc(db, 'contacts', id)); } catch(e) {} };
 
-  // --- Contacts ---
-  const addContact = async (contact: Omit<Contact, 'id'>) => {
-    try { await addDoc(collection(db, 'contacts'), contact); } catch(e) { console.error(e); }
-  };
+  const updateInvoice = async (invoice: Invoice) => { const { id, ...data } = invoice; try { await updateDoc(doc(db, 'invoices', id), data as any); } catch(e) {} };
+  const deleteInvoice = async (id: string) => { try { await deleteDoc(doc(db, 'invoices', id)); } catch(e) {} };
 
-  const updateContact = async (contact: Contact) => {
-    const { id, ...data } = contact;
-    try { await updateDoc(doc(db, 'contacts', id), data as any); } catch(e) { console.error(e); }
-  };
+  const updateExpense = async (expense: Expense) => { const { id, ...data } = expense; try { await updateDoc(doc(db, 'expenses', id), data as any); } catch(e) {} };
+  const deleteExpense = async (id: string) => { try { await deleteDoc(doc(db, 'expenses', id)); } catch(e) {} };
 
-  const deleteContact = async (id: string) => {
-    try { await deleteDoc(doc(db, 'contacts', id)); } catch(e) { console.error(e); }
-  };
+  const updateBond = async (bond: Bond) => { const { id, ...data } = bond; try { await updateDoc(doc(db, 'bonds', id), data as any); } catch(e) {} };
+  const deleteBond = async (id: string) => { try { await deleteDoc(doc(db, 'bonds', id)); } catch(e) {} };
 
-  // --- Invoices ---
-  const addInvoice = async (invoice: Omit<Invoice, 'id'>) => {
-    try { await addDoc(collection(db, 'invoices'), invoice); } catch(e) { console.error(e); }
-  };
+  const updateAccount = async (account: Account) => { const { id, ...data } = account; try { await updateDoc(doc(db, 'accounts', id), data as any); } catch(e) {} };
+  const deleteAccount = async (id: string) => { try { await deleteDoc(doc(db, 'accounts', id)); } catch(e) {} };
 
-  const deleteInvoice = async (id: string) => {
-    try { await deleteDoc(doc(db, 'invoices', id)); } catch(e) { console.error(e); }
-  };
-
-  // --- Expenses ---
-  const addExpense = async (expense: Omit<Expense, 'id'>) => {
-    try { await addDoc(collection(db, 'expenses'), expense); } catch(e) { console.error(e); }
-  };
-
-  const updateExpense = async (expense: Expense) => {
-    const { id, ...data } = expense;
-    try { await updateDoc(doc(db, 'expenses', id), data as any); } catch(e) { console.error(e); }
-  };
-
-  const deleteExpense = async (id: string) => {
-    try { await deleteDoc(doc(db, 'expenses', id)); } catch(e) { console.error(e); }
-  };
-
-  // --- Bonds ---
-  const addBond = async (bond: Omit<Bond, 'id'>) => {
-    try { await addDoc(collection(db, 'bonds'), bond); } catch(e) { console.error(e); }
-  };
-
-  const deleteBond = async (id: string) => {
-    try { await deleteDoc(doc(db, 'bonds', id)); } catch(e) { console.error(e); }
-  };
-
-  // --- Accounts ---
-  const addAccount = async (account: Omit<Account, 'id'>) => {
-    try { await addDoc(collection(db, 'accounts'), account); } catch(e) { console.error(e); }
-  };
-
-  const updateAccount = async (account: Account) => {
-    const { id, ...data } = account;
-    try { await updateDoc(doc(db, 'accounts', id), data as any); } catch(e) { console.error(e); }
-  };
-
-  // --- Reset Data (Factory Reset) ---
+  // --- Reset Data (Only for current store) ---
   const resetData = async () => {
+    if (!currentUser?.storeId) return;
+    
+    const storeId = currentUser.storeId;
     const collectionsToClear = ['products', 'contacts', 'invoices', 'expenses', 'bonds', 'accounts'];
     
     try {
-        for (const colName of collectionsToClear) {
-            const q = query(collection(db, colName));
-            const snapshot = await getDocs(q);
-            
-            if (snapshot.empty) continue;
+        const batch = writeBatch(db);
+        let count = 0;
 
-            const batch = writeBatch(db);
-            let count = 0;
+        for (const colName of collectionsToClear) {
+            const q = query(collection(db, colName), where('storeId', '==', storeId));
+            const snapshot = await getDocs(q);
             
             snapshot.docs.forEach((doc) => {
                 batch.delete(doc.ref);
                 count++;
             });
-            
-            if (count > 0) {
-                await batch.commit();
-            }
         }
         
-        // Clear seeded flag so accounts are re-created on next reload
-        sessionStorage.removeItem('accounts_seeded');
+        if (count > 0) {
+            await batch.commit();
+        }
         
-        // Force re-seed accounts immediately after clear
-        setTimeout(() => {
-            DEFAULT_ACCOUNTS.forEach(acc => addAccount(acc));
-        }, 1500);
+        // Re-seed accounts
+        const newBatch = writeBatch(db);
+        DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
+            const docRef = doc(collection(db, 'accounts'));
+            newBatch.set(docRef, { ...acc, storeId });
+        });
+        await newBatch.commit();
         
     } catch (e) {
         console.error("Error clearing data:", e);
@@ -274,31 +352,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Helper: Ensure we have accounts
-  useEffect(() => {
-      // Only try to seed if we have confirmed users loaded (meaning connection is OK)
-      // and accounts list is empty.
-      if (accounts.length === 0 && users.length > 0) { 
-          const hasSeeded = sessionStorage.getItem('accounts_seeded');
-          if (!hasSeeded) {
-               // Check one last time if DB is truly empty before writing
-               // (Optimistic seeding)
-               DEFAULT_ACCOUNTS.forEach(acc => addAccount(acc));
-               sessionStorage.setItem('accounts_seeded', 'true');
-          }
-      }
-  }, [accounts.length, users.length]);
-
   return (
     <DataContext.Provider value={{
+      currentUser,
       products, contacts, invoices, expenses, bonds, accounts, currency, setCurrency,
-      users, registerUser, validateUser,
+      users, registerStore, addEmployee, loginUser, logoutUser, deleteUser,
       addProduct, updateProduct, deleteProduct,
       addContact, updateContact, deleteContact,
-      addInvoice, deleteInvoice,
+      addInvoice, updateInvoice, deleteInvoice,
       addExpense, updateExpense, deleteExpense,
-      addBond, deleteBond,
-      addAccount, updateAccount,
+      addBond, updateBond, deleteBond,
+      addAccount, updateAccount, deleteAccount,
       resetData
     }}>
       {children}

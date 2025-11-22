@@ -11,7 +11,10 @@ import {
   Calendar,
   Search,
   Filter,
-  Download
+  Download,
+  Trash2,
+  Printer,
+  Edit
 } from 'lucide-react';
 import { useData } from '../DataContext';
 import { Account } from '../types';
@@ -24,7 +27,7 @@ interface AccountsProps {
 type AccountView = 'menu' | 'treasury' | 'opening-balance' | 'ledger' | 'final-accounts' | 'chart-of-accounts';
 
 const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
-  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount } = useData();
+  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount, deleteAccount } = useData();
   const [currentView, setCurrentView] = useState<AccountView>('menu');
   
   // State for Sub-views
@@ -176,6 +179,141 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       });
   };
 
+  // --- ACTIONS ---
+  const handleDeleteAccount = (acc: Account) => {
+      if (acc.systemAccount) {
+          alert(isRTL ? 'لا يمكن حذف هذا الحساب لأنه حساب نظام أساسي' : 'Cannot delete this system account');
+          return;
+      }
+      if (window.confirm(isRTL ? 'هل أنت متأكد من حذف هذا الحساب؟' : 'Are you sure you want to delete this account?')) {
+          deleteAccount(acc.id);
+      }
+  };
+
+  const handlePrintLedger = (accountId: string) => {
+      const account = accounts.find(a => a.id === accountId);
+      if (!account) return;
+
+      const transactions = getAccountLedger(accountId);
+      const printWindow = window.open('', '_blank', 'width=900,height=800');
+      if (!printWindow) return;
+
+      const direction = isRTL ? 'rtl' : 'ltr';
+      const textAlign = isRTL ? 'right' : 'left';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html dir="${direction}">
+        <head>
+            <title>${isRTL ? 'كشف حساب' : 'Account Statement'} - ${account.name}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+            <style>
+                body { font-family: 'Cairo', sans-serif; background: white; padding: 20px; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+                .info { margin-bottom: 20px; display: flex; justify-content: space-between; }
+                table { width: 100%; border-collapse: collapse; font-size: 14px; }
+                th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+                td { padding: 8px; border-bottom: 1px solid #eee; }
+                .totals { margin-top: 20px; font-weight: bold; text-align: ${isRTL ? 'left' : 'right'}; }
+                @media print { button { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h2>${isRTL ? 'كشف حساب (دفتر الأستاذ)' : 'General Ledger Statement'}</h2>
+                <h3>${account.code} - ${account.name}</h3>
+            </div>
+            <div class="info">
+                <div>${isRTL ? 'تاريخ الطباعة: ' : 'Print Date: '} ${new Date().toLocaleDateString()}</div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>${isRTL ? 'التاريخ' : 'Date'}</th>
+                        <th>${isRTL ? 'المرجع' : 'Ref'}</th>
+                        <th>${isRTL ? 'البيان' : 'Description'}</th>
+                        <th>${isRTL ? 'مدين' : 'Debit'}</th>
+                        <th>${isRTL ? 'دائن' : 'Credit'}</th>
+                        <th>${isRTL ? 'الرصيد' : 'Balance'}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${transactions.map(t => `
+                        <tr>
+                            <td>${t.date}</td>
+                            <td>${t.ref}</td>
+                            <td>${t.desc}</td>
+                            <td>${t.debit ? t.debit.toLocaleString() : '-'}</td>
+                            <td>${t.credit ? t.credit.toLocaleString() : '-'}</td>
+                            <td>${t.balance.toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div class="totals">
+                ${isRTL ? 'الرصيد النهائي: ' : 'Closing Balance: '} ${(transactions[transactions.length - 1]?.balance || 0).toLocaleString()} ${currencyLabel}
+            </div>
+            <script>window.print();</script>
+        </body>
+        </html>
+      `;
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+  };
+
+  const handlePrintChart = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) return;
+    
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const textAlign = isRTL ? 'right' : 'left';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; background: white; padding: 20px; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; font-size: 14px; }
+              th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+              td { padding: 8px; border-bottom: 1px solid #eee; }
+              @media print { button { display: none; } }
+          </style>
+      </head>
+      <body>
+          <div class="header">
+              <h2>${isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</h2>
+              <div>${isRTL ? 'ميلانو ستور' : 'Milano Store'}</div>
+          </div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
+                      <th>${isRTL ? 'اسم الحساب' : 'Account Name'}</th>
+                      <th>${isRTL ? 'النوع' : 'Type'}</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${accounts.sort((a,b) => a.code.localeCompare(b.code)).map(acc => `
+                      <tr>
+                          <td>${acc.code}</td>
+                          <td>${acc.name}</td>
+                          <td>${acc.type.toUpperCase()}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+          </table>
+          <script>window.print();</script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   // --- RENDERERS ---
 
   const renderMenu = () => {
@@ -215,12 +353,21 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       <div className="space-y-6 animate-fade-in">
           <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">{isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</h2>
-              <button 
-                onClick={() => { setEditingAccount({}); setIsModalOpen(true); }}
-                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm font-bold"
-              >
-                  {isRTL ? 'إضافة حساب' : 'Add Account'}
-              </button>
+              <div className="flex gap-2">
+                  <button 
+                    onClick={handlePrintChart}
+                    className="bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-bold flex items-center gap-2"
+                  >
+                      <Printer size={18} />
+                      {isRTL ? 'طباعة' : 'Print'}
+                  </button>
+                  <button 
+                    onClick={() => { setEditingAccount({}); setIsModalOpen(true); }}
+                    className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors text-sm font-bold"
+                  >
+                      {isRTL ? 'إضافة حساب' : 'Add Account'}
+                  </button>
+              </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
               <table className="w-full text-sm text-left rtl:text-right">
@@ -229,7 +376,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                           <th className="px-6 py-3">{isRTL ? 'الكود' : 'Code'}</th>
                           <th className="px-6 py-3">{isRTL ? 'اسم الحساب' : 'Account Name'}</th>
                           <th className="px-6 py-3">{isRTL ? 'النوع' : 'Type'}</th>
-                          <th className="px-6 py-3">{isRTL ? 'إجراءات' : 'Actions'}</th>
+                          <th className="px-6 py-3 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -247,13 +394,32 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                                       {acc.type.toUpperCase()}
                                   </span>
                               </td>
-                              <td className="px-6 py-3">
-                                  <button 
-                                    onClick={() => { setEditingAccount(acc); setIsModalOpen(true); }}
-                                    className="text-blue-600 hover:text-blue-800 font-medium"
-                                  >
-                                      {isRTL ? 'تعديل' : 'Edit'}
-                                  </button>
+                              <td className="px-6 py-3 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button 
+                                        onClick={() => { setEditingAccount(acc); setIsModalOpen(true); }}
+                                        className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
+                                        title={isRTL ? 'تعديل' : 'Edit'}
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handlePrintLedger(acc.id)}
+                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                                        title={isRTL ? 'طباعة كشف حساب' : 'Print Ledger'}
+                                    >
+                                        <Printer size={16} />
+                                    </button>
+                                    {!acc.systemAccount && (
+                                        <button 
+                                            onClick={() => handleDeleteAccount(acc)}
+                                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
+                                            title={isRTL ? 'حذف' : 'Delete'}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                  </div>
                               </td>
                           </tr>
                       ))}
@@ -322,13 +488,24 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                       </select>
                   </div>
                   
-                  {/* Summary for selected account */}
-                  <div className="flex items-center gap-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-100 dark:border-blue-800">
-                      <div>
-                          <span className="text-xs text-gray-500 block">{isRTL ? 'الرصيد الحالي' : 'Current Balance'}</span>
-                          <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                              {(transactions[transactions.length - 1]?.balance || 0).toLocaleString()} {currencyLabel}
-                          </span>
+                  <div className="flex items-center gap-4">
+                        {/* Print Ledger Button */}
+                        <button 
+                            onClick={() => handlePrintLedger(accountId)}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg border border-gray-300 dark:border-gray-600 transition-colors"
+                        >
+                            <Printer size={18} />
+                            <span className="font-bold text-sm">{isRTL ? 'طباعة الكشف' : 'Print Statement'}</span>
+                        </button>
+
+                      {/* Summary for selected account */}
+                      <div className="flex items-center gap-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-100 dark:border-blue-800">
+                          <div>
+                              <span className="text-xs text-gray-500 block">{isRTL ? 'الرصيد الحالي' : 'Current Balance'}</span>
+                              <span className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                  {(transactions[transactions.length - 1]?.balance || 0).toLocaleString()} {currencyLabel}
+                              </span>
+                          </div>
                       </div>
                   </div>
               </div>
@@ -527,15 +704,23 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                 <button 
                     onClick={() => {
                         if(!editingAccount.code || !editingAccount.name) return;
+                        
+                        const cleanData = {
+                            code: editingAccount.code,
+                            name: editingAccount.name,
+                            type: editingAccount.type,
+                            openingBalance: editingAccount.openingBalance,
+                            description: editingAccount.description,
+                            systemAccount: editingAccount.systemAccount
+                        };
+
                         if(editingAccount.id) {
-                            updateAccount(editingAccount as Account);
+                            updateAccount({ ...cleanData, id: editingAccount.id } as Account);
                         } else {
                             addAccount({
-                                code: editingAccount.code || '',
-                                name: editingAccount.name || '',
-                                type: editingAccount.type || 'expense',
-                                openingBalance: 0,
-                                ...editingAccount
+                                ...cleanData,
+                                openingBalance: cleanData.openingBalance || 0,
+                                type: cleanData.type || 'expense'
                             } as any);
                         }
                         setIsModalOpen(false);

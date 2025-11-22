@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { RefreshCw, Search, Plus, ClipboardList, Package } from 'lucide-react';
+import { RefreshCw, Search, Plus, ClipboardList, Package, Printer } from 'lucide-react';
 import { useData } from '../DataContext';
 import Modal from './Modal';
 
@@ -77,6 +77,97 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
         }, 0);
   };
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=600');
+    if (!printWindow) {
+        alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print');
+        return;
+    }
+
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const textAlign = isRTL ? 'right' : 'left';
+    const title = activeTab === 'current' ? (isRTL ? 'تقرير المخزون الحالي' : 'Current Stock Report') : (isRTL ? 'تقرير حركة المخزون' : 'Stock Movement Report');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${title}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; padding: 20px; background: white; }
+              .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+              .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+              .date { font-size: 12px; color: #666; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; }
+              th { background: #f3f4f6; padding: 8px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+              td { padding: 8px; border-bottom: 1px solid #eee; }
+              @media print { .print-btn { display: none; } }
+              .print-btn { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; margin-bottom: 20px; border-radius: 5px; }
+          </style>
+      </head>
+      <body>
+          <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save as PDF'}</button>
+          <div class="header">
+              <div class="title">${title}</div>
+              <div class="date">${new Date().toLocaleString()}</div>
+          </div>
+          <table>
+              <thead>
+                  <tr>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
+                      <th>${isRTL ? 'المنتج' : 'Product'}</th>
+                      ${activeTab === 'current' ? `
+                        <th>${isRTL ? 'المخزن' : 'Store'}</th>
+                        <th>${isRTL ? 'الكمية' : 'Quantity'}</th>
+                        <th>${isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
+                        <th>${isRTL ? 'إجمالي القيمة' : 'Total Value'}</th>
+                      ` : `
+                        <th>${isRTL ? 'الكمية المباعة' : 'Sold Qty'}</th>
+                        <th>${isRTL ? 'المتبقي' : 'Remaining'}</th>
+                        <th>${isRTL ? 'الحالة' : 'Status'}</th>
+                      `}
+                  </tr>
+              </thead>
+              <tbody>
+                  ${filteredProducts.map(p => {
+                      if (activeTab === 'current') {
+                           return `
+                            <tr>
+                                <td>${p.code}</td>
+                                <td>${p.name}</td>
+                                <td>${isRTL ? 'المخزن الرئيسي' : 'Main Store'}</td>
+                                <td>${p.stock} ${p.unit}</td>
+                                <td>${p.priceBuy.toLocaleString()}</td>
+                                <td>${(p.stock * p.priceBuy).toLocaleString()}</td>
+                            </tr>
+                          `;
+                      } else {
+                          const soldQty = getSoldQuantity(p.id);
+                          const isLow = p.stock <= p.minStock;
+                          const isOut = p.stock === 0;
+                          const status = isOut ? (isRTL ? 'نفذت' : 'Out') : isLow ? (isRTL ? 'منخفض' : 'Low') : (isRTL ? 'متوفر' : 'In Stock');
+                          return `
+                            <tr>
+                                <td>${p.code}</td>
+                                <td>${p.name}</td>
+                                <td>${soldQty} ${p.unit}</td>
+                                <td>${p.stock} ${p.unit}</td>
+                                <td>${status}</td>
+                            </tr>
+                          `;
+                      }
+                  }).join('')}
+              </tbody>
+          </table>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
       
@@ -112,6 +203,14 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                     {isRTL ? 'جرد الأصناف' : 'Inventory Count'}
                 </button>
             </div>
+
+            <button 
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold"
+            >
+                <Printer size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'طباعة' : 'Print'}</span>
+            </button>
 
             <button 
                 onClick={() => setIsModalOpen(true)}

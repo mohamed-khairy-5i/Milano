@@ -18,17 +18,12 @@ import { ViewState } from './types';
 import { useData, Currency } from './DataContext';
 
 const App: React.FC = () => {
-  const { currency, setCurrency } = useData();
+  const { currency, setCurrency, currentUser, logoutUser } = useData();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Default closed on mobile
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // For desktop collapse
-  
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('milano_auth') === 'true';
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Initialize theme and direction
   useEffect(() => {
@@ -47,51 +42,46 @@ const App: React.FC = () => {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
   const toggleLang = () => setIsRTL(!isRTL);
 
-  const handleLogin = () => {
-    localStorage.setItem('milano_auth', 'true');
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.setItem('milano_auth', 'false');
-    setIsAuthenticated(false);
-  };
-
+  // Render content based on view and permissions
   const renderContent = () => {
+    // Security Check: If user tries to access a view they don't have permission for
+    const p = currentUser?.permissions;
+    if (!p) return <Dashboard isRTL={isRTL} />; // Fallback
+
     switch (activeView) {
       case 'dashboard':
         return <Dashboard isRTL={isRTL} />;
       case 'pos':
-        return <POS isRTL={isRTL} />;
+        return p.canSell ? <POS isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'inventory':
-        return <Inventory isRTL={isRTL} />;
+        return p.canManageStock ? <Inventory isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'invoices':
-        return <Invoices isRTL={isRTL} type="sale" />;
+        return p.canSell ? <Invoices isRTL={isRTL} type="sale" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'invoices-purchase':
-        return <Invoices isRTL={isRTL} type="purchase" />;
+        return p.canSell ? <Invoices isRTL={isRTL} type="purchase" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'customers':
-        return <Contacts isRTL={isRTL} type="customer" />;
+        return p.canManageContacts ? <Contacts isRTL={isRTL} type="customer" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'suppliers':
-        return <Contacts isRTL={isRTL} type="supplier" />;
+        return p.canManageContacts ? <Contacts isRTL={isRTL} type="supplier" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'expenses':
-        return <Expenses isRTL={isRTL} />;
+        return p.canManageAccounting ? <Expenses isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'stock':
-        return <Stock isRTL={isRTL} />;
+        return p.canManageStock ? <Stock isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'accounting':
-         return <Bonds isRTL={isRTL} />;
+         return p.canManageAccounting ? <Bonds isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'accounts':
-         return <Accounts isRTL={isRTL} />;
+         return p.canManageAccounting ? <Accounts isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'reports':
-         return <Reports isRTL={isRTL} />;
+         return p.canViewReports ? <Reports isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'settings':
-        return <Settings isRTL={isRTL} />;
+        return p.canManageSettings ? <Settings isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       default:
         return <Dashboard isRTL={isRTL} />;
     }
   };
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} isRTL={isRTL} />;
+  if (!currentUser) {
+    return <Login onLogin={() => {}} isRTL={isRTL} />;
   }
 
   return (
@@ -119,7 +109,7 @@ const App: React.FC = () => {
             isCollapsed={isSidebarCollapsed}
             toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             onClose={() => setIsSidebarOpen(false)}
-            onLogout={handleLogout}
+            onLogout={logoutUser}
          />
       </div>
 
@@ -170,7 +160,7 @@ const App: React.FC = () => {
             </button>
 
             <button 
-              onClick={handleLogout}
+              onClick={logoutUser}
               className="hidden md:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
             >
               {isRTL ? 'خروج' : 'Logout'}

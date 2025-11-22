@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Edit, Trash2, Plus, Search, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Upload, Image as ImageIcon, X, Printer } from 'lucide-react';
 import { Product } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -77,6 +77,114 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
     }
   };
 
+  const handlePrintList = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=600');
+    if (!printWindow) {
+        alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة' : 'Please allow popups');
+        return;
+    }
+    
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const textAlign = isRTL ? 'right' : 'left';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${isRTL ? 'قائمة المنتجات' : 'Products List'}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; padding: 20px; }
+              h2 { text-align: center; margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; }
+              th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+              td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+              .img-box { width: 40px; height: 40px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+              .img-box img { width: 100%; height: 100%; object-fit: cover; }
+              @media print { .print-btn { display: none; } }
+          </style>
+      </head>
+      <body>
+          <h2>${isRTL ? 'قائمة المنتجات' : 'Products List'}</h2>
+          <table>
+              <thead>
+                  <tr>
+                      <th>${isRTL ? 'صورة' : 'Image'}</th>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
+                      <th>${isRTL ? 'الاسم' : 'Name'}</th>
+                      <th>${isRTL ? 'الفئة' : 'Category'}</th>
+                      <th>${isRTL ? 'الكمية' : 'Stock'}</th>
+                      <th>${isRTL ? 'سعر البيع' : 'Price'}</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${filteredProducts.map(p => `
+                      <tr>
+                          <td>
+                            <div class="img-box">
+                                ${p.image ? `<img src="${p.image}" />` : ''}
+                            </div>
+                          </td>
+                          <td>${p.code}</td>
+                          <td>${p.name}</td>
+                          <td>${p.category}</td>
+                          <td>${p.stock}</td>
+                          <td>${p.priceSell.toLocaleString()}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+          </table>
+          <script>window.print();</script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handlePrintRow = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const printWindow = window.open('', '_blank', 'width=600,height=600');
+    if (!printWindow) return;
+
+    const direction = isRTL ? 'rtl' : 'ltr';
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${product.name}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; padding: 40px; }
+              .card { border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 500px; margin: 0 auto; text-align: center; }
+              .product-img { width: 200px; height: 200px; object-fit: cover; margin: 0 auto 20px auto; border-radius: 10px; border: 1px solid #eee; }
+              .row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dashed #eee; padding-bottom: 5px; text-align: ${isRTL ? 'right' : 'left'}; }
+              .label { font-weight: bold; color: #555; }
+              h2 { margin: 10px 0; }
+              .code { font-family: monospace; background: #f3f4f6; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-bottom: 20px; }
+          </style>
+      </head>
+      <body>
+          <div class="card">
+              ${product.image ? `<img src="${product.image}" class="product-img" />` : ''}
+              <h2>${product.name}</h2>
+              <div class="code">${product.code}</div>
+              
+              <div class="row"><span class="label">${isRTL ? 'الفئة' : 'Category'}</span><span>${product.category}</span></div>
+              <div class="row"><span class="label">${isRTL ? 'الكمية' : 'Stock'}</span><span>${product.stock} ${product.unit}</span></div>
+              <div class="row"><span class="label">${isRTL ? 'سعر التكلفة' : 'Cost'}</span><span>${product.priceBuy.toLocaleString()}</span></div>
+              <div class="row"><span class="label">${isRTL ? 'سعر البيع' : 'Price'}</span><span>${product.priceSell.toLocaleString()}</span></div>
+              ${product.description ? `<div class="row"><span class="label">${isRTL ? 'الوصف' : 'Description'}</span><span>${product.description}</span></div>` : ''}
+          </div>
+          <script>window.print();</script>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const formatCurrency = (val: number) => {
     const currencyLabels: Record<string, string> = {
         'YER': isRTL ? 'ريال يمني' : 'YER',
@@ -111,6 +219,14 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
             </div>
 
             <button 
+                onClick={handlePrintList}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <Printer size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'طباعة' : 'Print'}</span>
+            </button>
+
+            <button 
                 onClick={handleOpenAdd}
                 className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
             >
@@ -125,7 +241,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
         <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
             <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0 z-10">
                 <tr>
-                    <th scope="col" className="px-6 py-4 text-center w-20">{isRTL ? 'صورة' : 'Image'}</th>
+                    <th scope="col" className="px-6 py-4 text-center w-24">{isRTL ? 'صورة' : 'Image'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكود' : 'Code'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الاسم' : 'Name'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الفئة' : 'Category'}</th>
@@ -139,11 +255,11 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                 {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group" onClick={() => handleOpenEdit(product)}>
                         <td className="px-6 py-4 text-center">
-                            <div className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden mx-auto bg-gray-50 flex items-center justify-center">
+                            <div className="w-24 h-24 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden mx-auto bg-gray-50 flex items-center justify-center">
                                 {product.image ? (
                                     <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <ImageIcon size={20} className="text-gray-400" />
+                                    <ImageIcon size={32} className="text-gray-400" />
                                 )}
                             </div>
                         </td>
@@ -166,6 +282,12 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                                     className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
                                 >
                                     <Edit size={16} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handlePrintRow(product, e)}
+                                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                                >
+                                    <Printer size={16} />
                                 </button>
                                 <button 
                                     onClick={(e) => handleDelete(product.id, e)}
@@ -209,16 +331,16 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
             
             {/* Image Upload Section */}
             <div className="flex items-center gap-4 mb-4 p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700/30">
-                <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-white dark:bg-gray-800 relative group">
+                <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-white dark:bg-gray-800 relative group">
                     {currentProduct.image ? (
                         <>
                             <img src={currentProduct.image} alt="Preview" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => setCurrentProduct({...currentProduct, image: ''})}>
-                                <X size={20} className="text-white" />
+                                <X size={24} className="text-white" />
                             </div>
                         </>
                     ) : (
-                        <ImageIcon size={24} className="text-gray-400" />
+                        <ImageIcon size={32} className="text-gray-400" />
                     )}
                 </div>
                 <div className="flex-1">
