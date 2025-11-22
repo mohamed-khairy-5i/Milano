@@ -2,7 +2,8 @@
 // Global Types
 
 export interface UserPermissions {
-  canSell: boolean;         // POS & Invoices
+  canSell: boolean;         // POS Only
+  canManageInvoices: boolean; // Sales & Purchases Lists
   canManageStock: boolean;  // Inventory & Stock
   canManageContacts: boolean; // Customers & Suppliers
   canManageAccounting: boolean; // Bonds, Expenses, Accounts

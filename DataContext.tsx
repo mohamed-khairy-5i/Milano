@@ -71,6 +71,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 const DEFAULT_PERMISSIONS: UserPermissions = {
   canSell: true,
+  canManageInvoices: true,
   canManageStock: true,
   canManageContacts: true,
   canManageAccounting: true,
@@ -95,6 +96,8 @@ const safePermissions = (perm: any): UserPermissions => {
   if (!perm) return DEFAULT_PERMISSIONS;
   return {
     canSell: !!perm.canSell,
+    // Default to canSell value if canManageInvoices is undefined (backward compatibility)
+    canManageInvoices: perm.canManageInvoices !== undefined ? !!perm.canManageInvoices : !!perm.canSell,
     canManageStock: !!perm.canManageStock,
     canManageContacts: !!perm.canManageContacts,
     canManageAccounting: !!perm.canManageAccounting,

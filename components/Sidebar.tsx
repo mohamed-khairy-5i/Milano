@@ -54,9 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
     { id: 'inventory', label: isRTL ? 'المنتجات' : 'Products', icon: Package, allowed: can('canManageStock') },
     { id: 'stock', label: isRTL ? 'إدارة المخزون' : 'Stock Mgmt', icon: Warehouse, allowed: can('canManageStock') },
     
-    // Sales & Purchases
-    { id: 'invoices', label: isRTL ? 'المبيعات' : 'Sales', icon: ShoppingCart, allowed: can('canSell') }, 
-    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag, allowed: can('canSell') },
+    // Sales & Purchases (Now controlled by canManageInvoices)
+    { id: 'invoices', label: isRTL ? 'المبيعات' : 'Sales', icon: ShoppingCart, allowed: can('canManageInvoices') }, 
+    { id: 'invoices-purchase', label: isRTL ? 'المشتريات' : 'Purchases', icon: ShoppingBag, allowed: can('canManageInvoices') },
     
     // Accounting
     { id: 'accounting', label: isRTL ? 'السندات' : 'Bonds', icon: FileText, allowed: can('canManageAccounting') }, 

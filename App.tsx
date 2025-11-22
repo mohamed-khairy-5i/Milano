@@ -56,9 +56,9 @@ const App: React.FC = () => {
       case 'inventory':
         return p.canManageStock ? <Inventory isRTL={isRTL} /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'invoices':
-        return p.canSell ? <Invoices isRTL={isRTL} type="sale" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
+        return p.canManageInvoices ? <Invoices isRTL={isRTL} type="sale" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'invoices-purchase':
-        return p.canSell ? <Invoices isRTL={isRTL} type="purchase" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
+        return p.canManageInvoices ? <Invoices isRTL={isRTL} type="purchase" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'customers':
         return p.canManageContacts ? <Contacts isRTL={isRTL} type="customer" /> : <div className="p-10 text-center text-red-500">Access Denied</div>;
       case 'suppliers':

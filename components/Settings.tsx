@@ -34,6 +34,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     password: '',
     permissions: {
       canSell: true,
+      canManageInvoices: false,
       canManageStock: false,
       canManageContacts: false,
       canManageAccounting: false,
@@ -93,6 +94,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
             password: '',
             permissions: {
               canSell: true,
+              canManageInvoices: false,
               canManageStock: false,
               canManageContacts: false,
               canManageAccounting: false,
@@ -223,6 +225,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {/* Badges for permissions */}
                                         {user.permissions.canSell && <span className="text-[10px] px-1.5 bg-blue-100 text-blue-800 rounded">POS</span>}
+                                        {user.permissions.canManageInvoices && <span className="text-[10px] px-1.5 bg-indigo-100 text-indigo-800 rounded">Sales/Purch</span>}
                                         {user.permissions.canManageStock && <span className="text-[10px] px-1.5 bg-purple-100 text-purple-800 rounded">Stock</span>}
                                         {user.permissions.canViewReports && <span className="text-[10px] px-1.5 bg-orange-100 text-orange-800 rounded">Reports</span>}
                                     </div>
@@ -356,7 +359,16 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                             onChange={e => setNewUser({...newUser, permissions: {...newUser.permissions, canSell: e.target.checked}})}
                             className="w-4 h-4"
                           />
-                          <span>{isRTL ? 'نقطة البيع (الكاشير) والفواتير' : 'POS (Cashier) & Invoices'}</span>
+                          <span>{isRTL ? 'نقطة البيع (الكاشير فقط)' : 'POS (Cashier Only)'}</span>
+                      </label>
+                       <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={newUser.permissions.canManageInvoices} 
+                            onChange={e => setNewUser({...newUser, permissions: {...newUser.permissions, canManageInvoices: e.target.checked}})}
+                            className="w-4 h-4"
+                          />
+                          <span>{isRTL ? 'إدارة المبيعات والمشتريات' : 'Sales & Purchases Management'}</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                           <input 
