@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { RefreshCw, Search, Plus, ClipboardList, Package, Printer } from 'lucide-react';
+import { RefreshCw, Search, Plus, ClipboardList, Package, Printer, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../DataContext';
 import Modal from './Modal';
 
@@ -101,7 +101,9 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
               .date { font-size: 12px; color: #666; }
               table { width: 100%; border-collapse: collapse; font-size: 12px; }
               th { background: #f3f4f6; padding: 8px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
-              td { padding: 8px; border-bottom: 1px solid #eee; }
+              td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+              .img-box { width: 50px; height: 50px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; display: flex; justify-content: center; align-items: center; margin: 0 auto; }
+              .img-box img { width: 100%; height: 100%; object-fit: cover; }
               @media print { .print-btn { display: none; } }
               .print-btn { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; margin-bottom: 20px; border-radius: 5px; }
           </style>
@@ -115,6 +117,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
           <table>
               <thead>
                   <tr>
+                      ${activeTab === 'movement' ? `<th>${isRTL ? 'صورة' : 'Image'}</th>` : ''}
                       <th>${isRTL ? 'الكود' : 'Code'}</th>
                       <th>${isRTL ? 'المنتج' : 'Product'}</th>
                       ${activeTab === 'current' ? `
@@ -149,6 +152,11 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                           const status = isOut ? (isRTL ? 'نفذت' : 'Out') : isLow ? (isRTL ? 'منخفض' : 'Low') : (isRTL ? 'متوفر' : 'In Stock');
                           return `
                             <tr>
+                                <td>
+                                   <div class="img-box">
+                                       ${p.image ? `<img src="${p.image}" />` : ''}
+                                   </div>
+                                </td>
                                 <td>${p.code}</td>
                                 <td>${p.name}</td>
                                 <td>${soldQty} ${p.unit}</td>
@@ -295,6 +303,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
             <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
                 <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0">
                     <tr>
+                        <th scope="col" className="px-6 py-4 text-center w-24">{isRTL ? 'صورة' : 'Image'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المنتج' : 'Product'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكمية المباعة' : 'Sold Qty'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المتبقي في المخزون' : 'Remaining Stock'}</th>
@@ -309,6 +318,15 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
 
                         return (
                             <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <td className="px-6 py-4 text-center">
+                                    <div className="w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden mx-auto bg-gray-50 flex items-center justify-center">
+                                        {product.image ? (
+                                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <ImageIcon size={24} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                </td>
                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                                     <div>{product.name}</div>
                                     <div className="text-xs text-gray-400">{product.code}</div>
@@ -333,7 +351,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                     })}
                     {filteredProducts.length === 0 && (
                         <tr>
-                            <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
                                 {isRTL ? 'لا توجد بيانات' : 'No data found'}
                             </td>
                         </tr>

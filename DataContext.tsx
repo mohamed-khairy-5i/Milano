@@ -12,13 +12,15 @@ import {
   query, 
   where,
   writeBatch,
-  getDocs 
+  getDocs,
+  setDoc
 } from 'firebase/firestore';
 
 export type Currency = 'YER' | 'SAR' | 'USD';
 
 interface DataContextType {
   currentUser: User | null;
+  storeName: string;
   products: Product[];
   contacts: Contact[];
   invoices: Invoice[];
@@ -35,6 +37,8 @@ interface DataContextType {
   loginUser: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logoutUser: () => void;
   deleteUser: (id: string) => Promise<void>;
+  
+  updateStoreSettings: (data: { name: string }) => Promise<void>;
 
   addProduct: (product: Omit<Product, 'id' | 'storeId'>) => void;
   updateProduct: (product: Product) => void;
@@ -95,6 +99,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   // Data State
+  const [storeName, setStoreName] = useState('Milano Store');
   const [products, setProducts] = useState<Product[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -119,6 +124,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } else {
       localStorage.removeItem('milano_user_session');
       // Clear data when logged out
+      setStoreName('Milano Store');
       setProducts([]);
       setContacts([]);
       setInvoices([]);
@@ -135,6 +141,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!currentUser?.storeId) return;
 
     const storeId = currentUser.storeId;
+
+    // Subscribe to Store Details
+    const unsubStore = onSnapshot(doc(db, 'stores', storeId), (docSnapshot) => {
+        if (docSnapshot.exists()) {
+            const data = docSnapshot.data();
+            if (data.name) setStoreName(data.name);
+        }
+    });
 
     const subscribe = <T,>(collectionName: string, setState: React.Dispatch<React.SetStateAction<T[]>>) => {
       // IMPORTANT: Only fetch data for this specific storeId
@@ -154,6 +168,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubUsers = subscribe<User>('users', setUsers);
 
     return () => {
+      unsubStore();
       unsubProducts();
       unsubContacts();
       unsubInvoices();
@@ -190,6 +205,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await addDoc(collection(db, 'users'), newUser);
       
+      // Create Initial Store Settings
+      await setDoc(doc(db, 'stores', newStoreId), { name: 'Milano Store' });
+
       // Seed Default Accounts for this new store
       const batch = writeBatch(db);
       DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
@@ -276,6 +294,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // --- DATA OPERATIONS (Inject storeId automatically) ---
+  
+  const updateStoreSettings = async (data: { name: string }) => {
+     if (!currentUser?.storeId) return;
+     try {
+        await setDoc(doc(db, 'stores', currentUser.storeId), data, { merge: true });
+     } catch(e) {
+        console.error(e);
+     }
+  };
 
   const addWithStoreId = async (collectionName: string, data: any) => {
       if (!currentUser?.storeId) return;
@@ -354,9 +381,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <DataContext.Provider value={{
-      currentUser,
+      currentUser, storeName,
       products, contacts, invoices, expenses, bonds, accounts, currency, setCurrency,
       users, registerStore, addEmployee, loginUser, logoutUser, deleteUser,
+      updateStoreSettings,
       addProduct, updateProduct, deleteProduct,
       addContact, updateContact, deleteContact,
       addInvoice, updateInvoice, deleteInvoice,

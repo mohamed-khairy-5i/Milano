@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX } from 'lucide-react';
 import { useData } from '../DataContext';
 import { User as UserType, UserPermissions } from '../types';
@@ -10,9 +10,16 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
-  const { currency, setCurrency, resetData, users, currentUser, addEmployee, deleteUser } = useData();
+  const { currency, setCurrency, resetData, users, currentUser, addEmployee, deleteUser, storeName, updateStoreSettings } = useData();
   const [activeTab, setActiveTab] = useState('general');
   const [isResetting, setIsResetting] = useState(false);
+
+  // General Settings State
+  const [localStoreName, setLocalStoreName] = useState(storeName);
+
+  useEffect(() => {
+      setLocalStoreName(storeName);
+  }, [storeName]);
 
   // User Management State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -41,6 +48,13 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     { id: 'currencies', label: isRTL ? 'العملات' : 'Currencies', icon: Globe },
     { id: 'backup', label: isRTL ? 'النسخ الاحتياطي' : 'Backup', icon: Database },
   ];
+
+  const handleSaveGeneral = async () => {
+      if (localStoreName.trim()) {
+          await updateStoreSettings({ name: localStoreName });
+          alert(isRTL ? 'تم حفظ التغييرات بنجاح' : 'Settings saved successfully');
+      }
+  };
 
   const handleClearData = async () => {
       if (confirm(isRTL ? 'تحذير: سيتم حذف جميع البيانات (المنتجات، العملاء، الفواتير) والعودة لحالة المصنع. هل أنت متأكد؟' : 'WARNING: This will delete ALL data (Products, Clients, Invoices) and reset to factory settings. Are you sure?')) {
@@ -141,11 +155,19 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                         <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
                             {isRTL ? 'اسم المتجر' : 'Store Name'}
                         </label>
-                        <input type="text" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" defaultValue="Milano Store" />
+                        <input 
+                            type="text" 
+                            value={localStoreName}
+                            onChange={(e) => setLocalStoreName(e.target.value)}
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                        />
                     </div>
                 </div>
                 <div className="mt-8 pt-4 border-t dark:border-gray-700">
-                    <button className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm">
+                    <button 
+                        onClick={handleSaveGeneral}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                    >
                         <Save size={18} />
                         <span>{isRTL ? 'حفظ التغييرات' : 'Save Changes'}</span>
                     </button>

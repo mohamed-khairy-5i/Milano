@@ -32,7 +32,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCollapsed = false, toggleCollapse, onClose, onLogout }) => {
-  const { currentUser } = useData();
+  const { currentUser, storeName } = useData();
   const permissions = currentUser?.permissions;
 
   // Helper to check permission
@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : ''}`}>
              {/* Logo */}
             <div className="flex items-center gap-2 font-bold text-2xl text-gray-800 dark:text-white">
-                <span>Milano</span>
+                <span>{storeName}</span>
             </div>
             
             {/* Mobile Close Button */}

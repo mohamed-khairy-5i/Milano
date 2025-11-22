@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { 
   Landmark, 
@@ -709,20 +710,16 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                         const cleanData = {
                             code: editingAccount.code,
                             name: editingAccount.name,
-                            type: editingAccount.type,
-                            openingBalance: editingAccount.openingBalance,
-                            description: editingAccount.description,
-                            systemAccount: editingAccount.systemAccount
+                            type: editingAccount.type || 'expense', // Default
+                            openingBalance: editingAccount.openingBalance || 0, // Default
+                            description: editingAccount.description || '', // Default
+                            systemAccount: editingAccount.systemAccount || false // Default and sanitize undefined
                         };
 
                         if(editingAccount.id) {
                             updateAccount({ ...cleanData, id: editingAccount.id } as Account);
                         } else {
-                            addAccount({
-                                ...cleanData,
-                                openingBalance: cleanData.openingBalance || 0,
-                                type: cleanData.type || 'expense'
-                            } as any);
+                            addAccount(cleanData as any);
                         }
                         setIsModalOpen(false);
                     }} 
