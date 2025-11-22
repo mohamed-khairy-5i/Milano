@@ -356,7 +356,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                             onChange={e => setNewUser({...newUser, permissions: {...newUser.permissions, canSell: e.target.checked}})}
                             className="w-4 h-4"
                           />
-                          <span>{isRTL ? 'نقاط البيع والفواتير' : 'POS & Invoices'}</span>
+                          <span>{isRTL ? 'نقطة البيع (الكاشير) والفواتير' : 'POS (Cashier) & Invoices'}</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                           <input 

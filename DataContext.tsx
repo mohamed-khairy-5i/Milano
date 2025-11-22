@@ -79,10 +79,14 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
 };
 
 // Helper to safely extract ID from string or object (Firestore Ref)
+// Prevents circular references if a Ref object is passed
 const safeId = (val: any): string => {
   if (!val) return '';
   if (typeof val === 'string') return val;
-  if (val.id) return String(val.id);
+  // Check if it's an object with an 'id' property (like a DocumentReference)
+  if (typeof val === 'object' && val !== null && 'id' in val) {
+    return String(val.id);
+  }
   return '';
 };
 
@@ -96,6 +100,21 @@ const safePermissions = (perm: any): UserPermissions => {
     canManageAccounting: !!perm.canManageAccounting,
     canViewReports: !!perm.canViewReports,
     canManageSettings: !!perm.canManageSettings,
+  };
+};
+
+// Explicitly construct a safe User object with NO internal Firestore objects
+const sanitizeUser = (user: any): User => {
+  if (!user) return null as any;
+  return {
+    id: String(user.id || ''),
+    name: String(user.name || ''),
+    username: String(user.username || ''),
+    password: String(user.password || ''),
+    role: user.role === 'admin' ? 'admin' : 'user',
+    storeId: safeId(user.storeId), // Ensure this is a string
+    permissions: safePermissions(user.permissions),
+    createdAt: String(user.createdAt || new Date().toISOString())
   };
 };
 
@@ -119,6 +138,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
+      console.error("Error parsing session:", e);
       return null;
     }
   });
@@ -142,25 +162,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('milano_currency', c);
   };
 
-  // Persist User Session - STRICT SANITIZATION
+  // Persist User Session - PARANOID SANITIZATION
   useEffect(() => {
     if (currentUser) {
       try {
         // Defensive copy: Ensure NO Firestore References or complex objects are passed to JSON.stringify
-        const safeUser: User = {
-          id: String(currentUser.id),
-          name: String(currentUser.name || ''),
-          username: String(currentUser.username || ''),
-          password: String(currentUser.password || ''), // In real app, don't store pwd
-          role: currentUser.role === 'admin' ? 'admin' : 'user',
-          storeId: safeId(currentUser.storeId),
-          permissions: safePermissions(currentUser.permissions),
-          createdAt: String(currentUser.createdAt || new Date().toISOString())
-        };
-        
+        const safeUser: User = sanitizeUser(currentUser);
         localStorage.setItem('milano_user_session', JSON.stringify(safeUser));
       } catch (error) {
         console.error("Error saving session to localStorage:", error);
+        // If saving fails (e.g. circular ref still exists), clear session to prevent crash loop
+        localStorage.removeItem('milano_user_session');
       }
     } else {
       localStorage.removeItem('milano_user_session');
@@ -200,6 +212,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return { 
                 id: doc.id, 
                 ...docData,
+                // IMPORTANT: Sanitize storeId for all docs to prevent Refs in state
+                storeId: safeId(docData.storeId),
                 // Explicitly convert Timestamp objects if they exist in the data
                 ...(docData.createdAt && typeof docData.createdAt.toDate === 'function' ? { createdAt: docData.createdAt.toDate().toISOString() } : {}),
                 ...(docData.date && typeof docData.date.toDate === 'function' ? { date: docData.date.toDate().toISOString() } : {})
@@ -334,7 +348,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             : String(rawData.createdAt || new Date().toISOString())
       };
 
-      setCurrentUser(userData);
+      // Double check sanitization
+      setCurrentUser(sanitizeUser(userData));
       return { success: true };
     } catch (error) {
       console.error("Login error:", error);
