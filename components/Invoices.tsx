@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Eye, Trash2, Printer, Filter, Search, Edit } from 'lucide-react';
 import { Invoice, InvoiceItem } from '../types';
@@ -77,7 +76,8 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
       setIsModalOpen(true);
   };
 
-  const handleEdit = (invoice: Invoice) => {
+  const handleEdit = (invoice: Invoice, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setEditingId(invoice.id);
     setNewInvoiceData({
         contactId: invoice.contactId,
@@ -113,6 +113,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
   };
 
   const handleSaveInvoice = () => {
+    // ... existing save logic
     if (!newInvoiceData.contactId) return;
 
     const selectedContact = contacts.find(c => c.id === newInvoiceData.contactId);
@@ -183,13 +184,15 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     setEditingId(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (window.confirm(isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure you want to delete?')) {
         deleteInvoice(id);
     }
   };
 
-  const handlePrint = (invoice: Invoice) => {
+  const handlePrint = (invoice: Invoice, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
       // ... existing print logic ...
       const contact = contacts.find(c => c.id === invoice.contactId);
       const contactPhone = contact?.phone || '';
@@ -421,23 +424,26 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                         <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
-                                    onClick={() => handleEdit(invoice)}
+                                    onClick={(e) => handleEdit(invoice, e)}
                                     className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
                                     title={isRTL ? 'تعديل' : 'Edit'}
+                                    type="button"
                                 >
                                     <Edit size={16} />
                                 </button>
                                 <button 
-                                    onClick={() => handlePrint(invoice)}
+                                    onClick={(e) => handlePrint(invoice, e)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
+                                    type="button"
                                 >
                                     <Printer size={16} />
                                 </button>
                                 <button 
-                                    onClick={() => handleDelete(invoice.id)}
+                                    onClick={(e) => handleDelete(invoice.id, e)}
                                     className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
                                     title={isRTL ? 'حذف' : 'Delete'}
+                                    type="button"
                                 >
                                     <Trash2 size={16} />
                                 </button>

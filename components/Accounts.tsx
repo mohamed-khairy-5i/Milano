@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { 
   Landmark, 
@@ -45,7 +44,6 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   const currencyLabel = currencyLabels[currency];
 
   // --- LEDGER LOGIC ---
-  // This transforms all operations into journal entries
   const ledgerEntries = useMemo(() => {
     const entries: { 
         id: string, 
@@ -135,7 +133,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
 
     // 4. Expenses
     expenses.forEach(exp => {
-        // Dr General Expenses (5100), Cr Cash (1001) (Assuming cash for simplicity unless we add payment method to expense)
+        // Dr General Expenses (5100), Cr Cash (1001)
         entries.push({
             id: `EXP-${exp.id}`,
             date: exp.date,
@@ -155,8 +153,6 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   const getAccountLedger = (accountId: string) => {
       let balance = 0;
       const account = accounts.find(a => a.id === accountId);
-      // Normal balance side: Asset/Expense = Dr (positive), Liab/Equity/Rev = Cr (positive)
-      // However, for a running balance, we usually do Debit - Credit
       
       return ledgerEntries
         .filter(e => e.debitAccount === accountId || e.creditAccount === accountId)
@@ -180,7 +176,8 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
   };
 
   // --- ACTIONS ---
-  const handleDeleteAccount = (acc: Account) => {
+  const handleDeleteAccount = (acc: Account, e: React.MouseEvent) => {
+      e.stopPropagation();
       if (acc.systemAccount) {
           alert(isRTL ? 'لا يمكن حذف هذا الحساب لأنه حساب نظام أساسي' : 'Cannot delete this system account');
           return;
@@ -190,7 +187,8 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       }
   };
 
-  const handlePrintLedger = (accountId: string) => {
+  const handlePrintLedger = (accountId: string, e?: React.MouseEvent) => {
+      if(e) e.stopPropagation();
       const account = accounts.find(a => a.id === accountId);
       if (!account) return;
 
@@ -397,24 +395,27 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                               <td className="px-6 py-3 text-center">
                                   <div className="flex items-center justify-center gap-2">
                                     <button 
-                                        onClick={() => { setEditingAccount(acc); setIsModalOpen(true); }}
+                                        onClick={(e) => { e.stopPropagation(); setEditingAccount(acc); setIsModalOpen(true); }}
                                         className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
                                         title={isRTL ? 'تعديل' : 'Edit'}
+                                        type="button"
                                     >
                                         <Edit size={16} />
                                     </button>
                                     <button 
-                                        onClick={() => handlePrintLedger(acc.id)}
+                                        onClick={(e) => handlePrintLedger(acc.id, e)}
                                         className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                         title={isRTL ? 'طباعة كشف حساب' : 'Print Ledger'}
+                                        type="button"
                                     >
                                         <Printer size={16} />
                                     </button>
                                     {!acc.systemAccount && (
                                         <button 
-                                            onClick={() => handleDeleteAccount(acc)}
+                                            onClick={(e) => handleDeleteAccount(acc, e)}
                                             className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
                                             title={isRTL ? 'حذف' : 'Delete'}
+                                            type="button"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -491,7 +492,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                   <div className="flex items-center gap-4">
                         {/* Print Ledger Button */}
                         <button 
-                            onClick={() => handlePrintLedger(accountId)}
+                            onClick={(e) => handlePrintLedger(accountId, e)}
                             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg border border-gray-300 dark:border-gray-600 transition-colors"
                         >
                             <Printer size={18} />

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Filter, Trash2, FileText, Search, Printer, Edit } from 'lucide-react';
 import { Bond } from '../types';
@@ -55,7 +54,8 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (bond: Bond) => {
+  const handleEdit = (bond: Bond, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setEditingId(bond.id);
     setNewBondData({
         type: bond.type,
@@ -111,19 +111,21 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     setEditingId(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (window.confirm(isRTL ? 'هل أنت متأكد من الحذف؟' : 'Are you sure you want to delete?')) {
       deleteBond(id);
     }
   };
 
-  const handlePrint = (bond: Bond) => {
+  const handlePrint = (bond: Bond, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const printWindow = window.open('', '_blank', 'width=900,height=600');
     if (!printWindow) {
         alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print');
         return;
     }
-
+    // ... (rest of print logic is unchanged)
     const currencySymbol = currency;
     const direction = isRTL ? 'rtl' : 'ltr';
     const title = bond.type === 'receipt' 
@@ -310,23 +312,26 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                          <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <button 
-                                    onClick={() => handleEdit(bond)}
+                                    onClick={(e) => handleEdit(bond, e)}
                                     className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
                                     title={isRTL ? 'تعديل' : 'Edit'}
+                                    type="button"
                                 >
                                     <Edit size={16} />
                                 </button>
                                 <button 
-                                    onClick={() => handlePrint(bond)}
+                                    onClick={(e) => handlePrint(bond, e)}
                                     className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
                                     title={isRTL ? 'طباعة' : 'Print'}
+                                    type="button"
                                 >
                                     <Printer size={16} />
                                 </button>
                                 <button 
-                                    onClick={() => handleDelete(bond.id)}
+                                    onClick={(e) => handleDelete(bond.id, e)}
                                     className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
                                     title={isRTL ? 'حذف' : 'Delete'}
+                                    type="button"
                                 >
                                     <Trash2 size={16} />
                                 </button>
@@ -361,8 +366,9 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
             </>
         }
       >
-         {/* Modal Form */}
+         {/* Modal Form Content */}
         <div className="space-y-4">
+            {/* ... same as before ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'نوع السند' : 'Bond Type'}</label>
