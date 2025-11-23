@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Filter, Trash2, FileText, Search, Printer, Edit } from 'lucide-react';
 import { Bond } from '../types';
@@ -117,6 +118,92 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
       deleteBond(id);
     }
   };
+
+  const handlePrintReport = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) return;
+
+    const totalReceipts = filteredBonds.filter(b => b.type === 'receipt').reduce((sum, b) => sum + b.amount, 0);
+    const totalPayments = filteredBonds.filter(b => b.type === 'payment').reduce((sum, b) => sum + b.amount, 0);
+    const netTotal = totalReceipts - totalPayments;
+
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const textAlign = isRTL ? 'right' : 'left';
+    const currencySymbol = currency;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${isRTL ? 'تقرير السندات' : 'Bonds Report'}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; padding: 20px; }
+              h2 { text-align: center; margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 20px; }
+              th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+              td { padding: 8px; border-bottom: 1px solid #eee; }
+              .total-row { font-weight: bold; background: #f9fafb; }
+              .receipt { color: green; }
+              .payment { color: red; }
+              @media print { .print-btn { display: none; } }
+          </style>
+      </head>
+      <body>
+          <button class="print-btn" onclick="window.print()" style="padding: 10px 20px; margin-bottom: 20px; cursor: pointer;">${isRTL ? 'طباعة التقرير' : 'Print Report'}</button>
+          <h2>${isRTL ? 'تقرير السندات المالية' : 'Financial Bonds Report'}</h2>
+          <div>${isRTL ? 'تاريخ التقرير: ' : 'Date: '} ${new Date().toLocaleString()}</div>
+          
+          <table>
+              <thead>
+                  <tr>
+                      <th>${isRTL ? 'رقم السند' : 'Bond #'}</th>
+                      <th>${isRTL ? 'التاريخ' : 'Date'}</th>
+                      <th>${isRTL ? 'الجهة' : 'Entity'}</th>
+                      <th>${isRTL ? 'النوع' : 'Type'}</th>
+                      <th>${isRTL ? 'المبلغ' : 'Amount'}</th>
+                      <th>${isRTL ? 'طريقة الدفع' : 'Method'}</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${filteredBonds.map(bond => `
+                      <tr>
+                          <td>${bond.number}</td>
+                          <td>${bond.date}</td>
+                          <td>${bond.entityName}</td>
+                          <td class="${bond.type === 'receipt' ? 'receipt' : 'payment'}">
+                              ${isRTL ? (bond.type === 'receipt' ? 'قبض' : 'صرف') : (bond.type === 'receipt' ? 'Receipt' : 'Payment')}
+                          </td>
+                          <td style="font-weight: bold;">${bond.amount.toLocaleString()}</td>
+                          <td>${isRTL ? (bond.paymentMethod === 'cash' ? 'نقدي' : 'بنك') : bond.paymentMethod}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+              <tfoot>
+                  <tr class="total-row">
+                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي القبض' : 'Total Receipts'}</td>
+                      <td style="color: green;">${totalReceipts.toLocaleString()} ${currencySymbol}</td>
+                      <td></td>
+                  </tr>
+                   <tr class="total-row">
+                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي الصرف' : 'Total Payments'}</td>
+                      <td style="color: red;">${totalPayments.toLocaleString()} ${currencySymbol}</td>
+                      <td></td>
+                  </tr>
+                   <tr class="total-row" style="background: #e5e7eb; border-top: 2px solid #ccc;">
+                      <td colspan="4" style="text-align: center;">${isRTL ? 'صافي الحركة' : 'Net Movement'}</td>
+                      <td style="color: ${netTotal >= 0 ? 'blue' : 'orange'};">${netTotal.toLocaleString()} ${currencySymbol}</td>
+                      <td></td>
+                  </tr>
+              </tfoot>
+          </table>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
 
   const handlePrint = (bond: Bond, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -252,6 +339,14 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
+
+            <button 
+                onClick={handlePrintReport}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <FileText size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'طباعة تقرير' : 'Print Report'}</span>
+            </button>
 
             <button 
                 onClick={handleOpenAdd}

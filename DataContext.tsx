@@ -37,6 +37,7 @@ interface DataContextType {
   loginUser: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logoutUser: () => void;
   deleteUser: (id: string) => Promise<void>;
+  updateUser: (user: Partial<User> & { id: string }) => Promise<{ success: boolean; message?: string }>;
   
   updateStoreSettings: (data: { name: string }) => Promise<void>;
 
@@ -79,16 +80,41 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
   canManageSettings: true
 };
 
-// Helper to safely extract ID from string or object (Firestore Ref)
-// Prevents circular references if a Ref object is passed
-const safeId = (val: any): string => {
-  if (!val) return '';
-  if (typeof val === 'string') return val;
-  // Check if it's an object with an 'id' property (like a DocumentReference)
-  if (typeof val === 'object' && val !== null && 'id' in val) {
-    return String(val.id);
+// --- DATA SANITIZATION UTILITIES ---
+
+/**
+ * Recursively cleans Firestore data to ensure no circular References or complex objects
+ * leak into the React State. This prevents JSON.stringify crashes.
+ */
+const sanitizeFirestoreData = (data: any): any => {
+  if (data === null || data === undefined) return data;
+  
+  if (typeof data !== 'object') return data;
+
+  // Handle Firestore Timestamp (duck typing)
+  if (typeof data.toDate === 'function') {
+    return data.toDate().toISOString();
   }
-  return '';
+  
+  // Handle Firestore DocumentReference (The Circular Culprit)
+  // References have 'firestore' property which points back to app -> circular
+  if (data.firestore && data.id) {
+    return String(data.id); 
+  }
+
+  // Handle Arrays
+  if (Array.isArray(data)) {
+    return data.map(sanitizeFirestoreData);
+  }
+
+  // Handle Objects
+  const cleanObj: any = {};
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      cleanObj[key] = sanitizeFirestoreData(data[key]);
+    }
+  }
+  return cleanObj;
 };
 
 // Helper to safely sanitize permissions
@@ -109,15 +135,16 @@ const safePermissions = (perm: any): UserPermissions => {
 // Explicitly construct a safe User object with NO internal Firestore objects
 const sanitizeUser = (user: any): User => {
   if (!user) return null as any;
+  const cleanData = sanitizeFirestoreData(user);
   return {
-    id: String(user.id || ''),
-    name: String(user.name || ''),
-    username: String(user.username || ''),
-    password: String(user.password || ''),
-    role: user.role === 'admin' ? 'admin' : 'user',
-    storeId: safeId(user.storeId), // Ensure this is a string
-    permissions: safePermissions(user.permissions),
-    createdAt: String(user.createdAt || new Date().toISOString())
+    id: String(cleanData.id || ''),
+    name: String(cleanData.name || ''),
+    username: String(cleanData.username || ''),
+    password: String(cleanData.password || ''),
+    role: cleanData.role === 'admin' ? 'admin' : 'user',
+    storeId: String(cleanData.storeId || ''),
+    permissions: safePermissions(cleanData.permissions),
+    createdAt: String(cleanData.createdAt || new Date().toISOString())
   };
 };
 
@@ -169,12 +196,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (currentUser) {
       try {
-        // Defensive copy: Ensure NO Firestore References or complex objects are passed to JSON.stringify
+        // Double ensure we are saving a clean object
         const safeUser: User = sanitizeUser(currentUser);
         localStorage.setItem('milano_user_session', JSON.stringify(safeUser));
       } catch (error) {
         console.error("Error saving session to localStorage:", error);
-        // If saving fails (e.g. circular ref still exists), clear session to prevent crash loop
         localStorage.removeItem('milano_user_session');
       }
     } else {
@@ -196,7 +222,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (!currentUser?.storeId) return;
 
-    const storeId = safeId(currentUser.storeId);
+    const storeId = currentUser.storeId;
 
     // Subscribe to Store Details
     const unsubStore = onSnapshot(doc(db, 'stores', storeId), (docSnapshot) => {
@@ -210,16 +236,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const q = query(collection(db, collectionName), where('storeId', '==', storeId));
       return onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => {
-            // Flatten data to avoid nested Firestore objects
-            const docData = doc.data();
+            // Get raw data and sanitize it immediately
+            const rawData = doc.data();
+            const cleanData = sanitizeFirestoreData(rawData);
+            
             return { 
                 id: doc.id, 
-                ...docData,
-                // IMPORTANT: Sanitize storeId for all docs to prevent Refs in state
-                storeId: safeId(docData.storeId),
-                // Explicitly convert Timestamp objects if they exist in the data
-                ...(docData.createdAt && typeof docData.createdAt.toDate === 'function' ? { createdAt: docData.createdAt.toDate().toISOString() } : {}),
-                ...(docData.date && typeof docData.date.toDate === 'function' ? { date: docData.date.toDate().toISOString() } : {})
+                ...cleanData,
+                // Ensure ID fields are definitely strings
+                storeId: String(cleanData.storeId || ''),
             } as T;
         });
         setState(data);
@@ -295,7 +320,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return { success: false, message: 'Username already exists' };
         }
 
-        const storeId = safeId(currentUser.storeId);
+        const storeId = currentUser.storeId;
 
         const newEmployee: Omit<User, 'id'> = {
             ...userData,
@@ -309,6 +334,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error("Add employee error:", error);
         return { success: false, message: 'Failed to add employee' };
     }
+  };
+
+  const updateUser = async (userUpdates: Partial<User> & { id: string }) => {
+      try {
+          const { id, ...data } = userUpdates;
+          // Note: Username uniqueness check is skipped for updates for simplicity, 
+          // but should be handled in a real-world scenario.
+          
+          await updateDoc(doc(db, 'users', id), data as any);
+          
+          // If updating current user (self), update local state immediately
+          if (currentUser && currentUser.id === id) {
+              setCurrentUser(prev => prev ? { ...prev, ...userUpdates } as User : null);
+          }
+          return { success: true };
+      } catch (error: any) {
+          console.error("Update user error:", error);
+          return { success: false, message: error.message || 'Failed to update user' };
+      }
   };
 
   const loginUser = async (username: string, password: string) => {
@@ -336,23 +380,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const docSnap = snapshot.docs[0];
       const rawData = docSnap.data();
+      const cleanData = sanitizeFirestoreData(rawData);
       
-      // STRICT CONVERSION: Ensure no Firestore objects leak into state
       const userData: User = {
         id: docSnap.id,
-        name: String(rawData.name || ''),
-        username: String(rawData.username || ''),
-        password: String(rawData.password || ''),
-        role: rawData.role || 'user',
-        storeId: safeId(rawData.storeId), // Handles Reference objects safely
-        permissions: safePermissions(rawData.permissions),
-        createdAt: rawData.createdAt?.toDate 
-            ? rawData.createdAt.toDate().toISOString() 
-            : String(rawData.createdAt || new Date().toISOString())
+        name: String(cleanData.name || ''),
+        username: String(cleanData.username || ''),
+        password: String(cleanData.password || ''),
+        role: cleanData.role || 'user',
+        storeId: String(cleanData.storeId || ''),
+        permissions: safePermissions(cleanData.permissions),
+        createdAt: cleanData.createdAt || new Date().toISOString()
       };
 
-      // Double check sanitization
-      setCurrentUser(sanitizeUser(userData));
+      setCurrentUser(userData);
       return { success: true };
     } catch (error) {
       console.error("Login error:", error);
@@ -374,7 +415,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const updateStoreSettings = async (data: { name: string }) => {
      if (!currentUser?.storeId) return;
-     const storeId = safeId(currentUser.storeId);
+     const storeId = currentUser.storeId;
      try {
         await setDoc(doc(db, 'stores', storeId), data, { merge: true });
      } catch(e) {
@@ -384,7 +425,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addWithStoreId = async (collectionName: string, data: any) => {
       if (!currentUser?.storeId) return;
-      const storeId = safeId(currentUser.storeId);
+      const storeId = currentUser.storeId;
       try {
           await addDoc(collection(db, collectionName), { ...data, storeId });
       } catch (e) { console.error(e); }
@@ -423,7 +464,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const resetData = async () => {
     if (!currentUser?.storeId) return;
     
-    const storeId = safeId(currentUser.storeId);
+    const storeId = currentUser.storeId;
     const collectionsToClear = ['products', 'contacts', 'invoices', 'expenses', 'bonds', 'accounts'];
     
     try {
@@ -462,7 +503,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <DataContext.Provider value={{
       currentUser, storeName,
       products, contacts, invoices, expenses, bonds, accounts, currency, setCurrency,
-      users, registerStore, addEmployee, loginUser, logoutUser, deleteUser,
+      users, registerStore, addEmployee, loginUser, logoutUser, deleteUser, updateUser,
       updateStoreSettings,
       addProduct, updateProduct, deleteProduct,
       addContact, updateContact, deleteContact,

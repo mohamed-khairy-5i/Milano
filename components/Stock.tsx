@@ -88,6 +88,11 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     const textAlign = isRTL ? 'right' : 'left';
     const title = activeTab === 'current' ? (isRTL ? 'تقرير المخزون الحالي' : 'Current Stock Report') : (isRTL ? 'تقرير حركة المخزون' : 'Stock Movement Report');
 
+    // Calculate Totals
+    const totalStock = filteredProducts.reduce((sum, p) => sum + p.stock, 0);
+    const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
+    const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
+
     const htmlContent = `
       <!DOCTYPE html>
       <html dir="${direction}">
@@ -104,6 +109,8 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
               td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
               .img-box { width: 50px; height: 50px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; display: flex; justify-content: center; align-items: center; margin: 0 auto; }
               .img-box img { width: 100%; height: 100%; object-fit: cover; }
+              .footer-row { background-color: #f3f4f6; font-weight: bold; font-size: 14px; }
+              .summary-box { display: flex; justify-content: center; gap: 30px; margin-top: 10px; font-size: 14px; font-weight: bold; background: #f9fafb; padding: 10px; border-radius: 8px; }
               @media print { .print-btn { display: none; } }
               .print-btn { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; margin-bottom: 20px; border-radius: 5px; }
           </style>
@@ -113,6 +120,13 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
           <div class="header">
               <div class="title">${title}</div>
               <div class="date">${new Date().toLocaleString()}</div>
+              ${activeTab === 'current' ? `
+              <div class="summary-box">
+                  <span>${isRTL ? 'إجمالي قيمة المخزون (تكلفة):' : 'Total Stock Value (Cost):'} ${totalCostValue.toLocaleString()}</span>
+                  <span style="border-right: 1px solid #ccc; margin: 0 10px;"></span>
+                  <span>${isRTL ? 'إجمالي قيمة المخزون (بيع):' : 'Total Stock Value (Sell):'} ${totalSellValue.toLocaleString()}</span>
+              </div>
+              ` : ''}
           </div>
           <table>
               <thead>
@@ -124,7 +138,8 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <th>${isRTL ? 'المخزن' : 'Store'}</th>
                         <th>${isRTL ? 'الكمية' : 'Quantity'}</th>
                         <th>${isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
-                        <th>${isRTL ? 'إجمالي القيمة' : 'Total Value'}</th>
+                        <th>${isRTL ? 'سعر البيع' : 'Sell Price'}</th>
+                        <th>${isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
                       ` : `
                         <th>${isRTL ? 'الكمية المباعة' : 'Sold Qty'}</th>
                         <th>${isRTL ? 'المتبقي' : 'Remaining'}</th>
@@ -142,6 +157,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                                 <td>${isRTL ? 'المخزن الرئيسي' : 'Main Store'}</td>
                                 <td>${p.stock} ${p.unit}</td>
                                 <td>${p.priceBuy.toLocaleString()}</td>
+                                <td>${p.priceSell.toLocaleString()}</td>
                                 <td>${(p.stock * p.priceBuy).toLocaleString()}</td>
                             </tr>
                           `;
@@ -167,6 +183,25 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                       }
                   }).join('')}
               </tbody>
+              ${activeTab === 'current' ? `
+              <tfoot>
+                  <tr class="footer-row">
+                      <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                      <td>${totalStock.toLocaleString()}</td>
+                      <td>-</td>
+                      <td>-</td>
+                      <td>${totalCostValue.toLocaleString()}</td>
+                  </tr>
+              </tfoot>
+              ` : `
+               <tfoot>
+                  <tr class="footer-row">
+                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي المخزون المتبقي' : 'Total Remaining Stock'}</td>
+                      <td>${totalStock.toLocaleString()}</td>
+                      <td>-</td>
+                  </tr>
+              </tfoot>
+              `}
           </table>
       </body>
       </html>
@@ -260,7 +295,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الكمية المتوفرة' : 'Available Qty'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر البيع' : 'Selling Price'}</th>
-                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي القيمة' : 'Total Value'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">

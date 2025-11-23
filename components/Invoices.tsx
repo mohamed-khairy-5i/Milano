@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Plus, Eye, Trash2, Printer, Filter, Search, Edit } from 'lucide-react';
+import { Plus, Eye, Trash2, Printer, Filter, Search, Edit, FileText } from 'lucide-react';
 import { Invoice, InvoiceItem } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -191,6 +192,87 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     }
   };
 
+  const handlePrintReport = () => {
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) return;
+
+    const totalAmount = filteredInvoices.reduce((sum, i) => sum + i.total, 0);
+    const totalPaid = filteredInvoices.reduce((sum, i) => sum + i.paidAmount, 0);
+    const totalRemaining = filteredInvoices.reduce((sum, i) => sum + i.remainingAmount, 0);
+
+    const direction = isRTL ? 'rtl' : 'ltr';
+    const textAlign = isRTL ? 'right' : 'left';
+    const title = type === 'sale' ? (isRTL ? 'تقرير المبيعات' : 'Sales Report') : (isRTL ? 'تقرير المشتريات' : 'Purchases Report');
+    const currencySymbol = currency;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${direction}">
+      <head>
+          <title>${title}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+              body { font-family: 'Cairo', sans-serif; padding: 20px; }
+              h2 { text-align: center; margin-bottom: 20px; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 20px; }
+              th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
+              td { padding: 8px; border-bottom: 1px solid #eee; }
+              .total-row { font-weight: bold; background: #f9fafb; }
+              @media print { .print-btn { display: none; } }
+          </style>
+      </head>
+      <body>
+          <button class="print-btn" onclick="window.print()" style="padding: 10px 20px; margin-bottom: 20px; cursor: pointer;">${isRTL ? 'طباعة التقرير' : 'Print Report'}</button>
+          <h2>${title}</h2>
+          <div>${isRTL ? 'تاريخ التقرير: ' : 'Date: '} ${new Date().toLocaleString()}</div>
+          
+          <table>
+              <thead>
+                  <tr>
+                      <th>${isRTL ? 'رقم الفاتورة' : 'Invoice #'}</th>
+                      <th>${contactLabel}</th>
+                      <th>${isRTL ? 'التاريخ' : 'Date'}</th>
+                      <th>${isRTL ? 'الإجمالي' : 'Total'}</th>
+                      <th>${isRTL ? 'المدفوع' : 'Paid'}</th>
+                      <th>${isRTL ? 'المتبقي' : 'Remaining'}</th>
+                      <th>${isRTL ? 'الحالة' : 'Status'}</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${filteredInvoices.map(inv => `
+                      <tr>
+                          <td>${inv.number}</td>
+                          <td>${inv.contactName}</td>
+                          <td>${inv.date}</td>
+                          <td>${inv.total.toLocaleString()}</td>
+                          <td style="color: green;">${inv.paidAmount.toLocaleString()}</td>
+                          <td style="color: red;">${inv.remainingAmount.toLocaleString()}</td>
+                          <td>
+                              ${isRTL 
+                                ? (inv.status === 'paid' ? 'مدفوع' : inv.status === 'credit' ? 'آجل' : inv.status === 'pending' ? 'معلق' : 'ملغي')
+                                : (inv.status === 'credit' ? 'Credit' : inv.status.toUpperCase())
+                              }
+                          </td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+              <tfoot>
+                  <tr class="total-row">
+                      <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                      <td>${totalAmount.toLocaleString()} ${currencySymbol}</td>
+                      <td style="color: green;">${totalPaid.toLocaleString()} ${currencySymbol}</td>
+                      <td style="color: red;">${totalRemaining.toLocaleString()} ${currencySymbol}</td>
+                      <td></td>
+                  </tr>
+              </tfoot>
+          </table>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const handlePrint = (invoice: Invoice, e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
       // ... existing print logic ...
@@ -357,11 +439,19 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 <input 
                     type="text" 
                     className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
-                    placeholder={isRTL ? "بحث برقم الفاتورة..." : "Search invoice #..."}
+                    placeholder={isRTL ? "بحث برقم الفاتورة أو الاسم..." : "Search invoice # or name..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
+
+            <button 
+                onClick={handlePrintReport}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <FileText size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'تقرير شامل' : 'Full Report'}</span>
+            </button>
 
             <button 
                 onClick={handleOpenAdd}

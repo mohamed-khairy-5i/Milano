@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX, Edit } from 'lucide-react';
 import { useData } from '../DataContext';
 import { User as UserType, UserPermissions } from '../types';
 import Modal from './Modal';
@@ -10,7 +10,7 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
-  const { currency, setCurrency, resetData, users, currentUser, addEmployee, deleteUser, storeName, updateStoreSettings } = useData();
+  const { currency, setCurrency, resetData, users, currentUser, addEmployee, updateUser, deleteUser, storeName, updateStoreSettings } = useData();
   const [activeTab, setActiveTab] = useState('general');
   const [isResetting, setIsResetting] = useState(false);
 
@@ -23,6 +23,8 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
 
   // User Management State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  
   const [newUser, setNewUser] = useState<{
     name: string;
     username: string;
@@ -72,39 +74,103 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
       }
   };
 
-  const handleAddUser = async () => {
+  const handleOpenAddUser = () => {
+      setEditingUserId(null);
+      setNewUser({
+        name: '',
+        username: '',
+        password: '',
+        permissions: {
+          canSell: true,
+          canManageInvoices: false,
+          canManageStock: false,
+          canManageContacts: false,
+          canManageAccounting: false,
+          canViewReports: false,
+          canManageSettings: false
+        }
+      });
+      setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (user: UserType) => {
+      setEditingUserId(user.id);
+      setNewUser({
+          name: user.name,
+          username: user.username,
+          password: user.password,
+          permissions: { ...user.permissions }
+      });
+      setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = async () => {
       if (!newUser.name || !newUser.username || !newUser.password) {
           alert(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
           return;
       }
 
-      const result = await addEmployee({
-          name: newUser.name,
-          username: newUser.username,
-          password: newUser.password,
-          role: 'user',
-          permissions: newUser.permissions
-      });
-
-      if (result.success) {
-          setIsUserModalOpen(false);
-          setNewUser({
-            name: '',
-            username: '',
-            password: '',
-            permissions: {
-              canSell: true,
-              canManageInvoices: false,
-              canManageStock: false,
-              canManageContacts: false,
-              canManageAccounting: false,
-              canViewReports: false,
-              canManageSettings: false
-            }
+      if (editingUserId) {
+          // Update existing user
+          const result = await updateUser({
+              id: editingUserId,
+              name: newUser.name,
+              username: newUser.username,
+              password: newUser.password,
+              permissions: newUser.permissions
           });
-          alert(isRTL ? 'تم إضافة المستخدم بنجاح' : 'User added successfully');
+
+          if (result.success) {
+              setIsUserModalOpen(false);
+              setNewUser({
+                name: '',
+                username: '',
+                password: '',
+                permissions: {
+                  canSell: true,
+                  canManageInvoices: false,
+                  canManageStock: false,
+                  canManageContacts: false,
+                  canManageAccounting: false,
+                  canViewReports: false,
+                  canManageSettings: false
+                }
+              });
+              setEditingUserId(null);
+              alert(isRTL ? 'تم تحديث البيانات بنجاح' : 'User updated successfully');
+          } else {
+              alert(result.message);
+          }
       } else {
-          alert(result.message);
+          // Add new user
+          const result = await addEmployee({
+              name: newUser.name,
+              username: newUser.username,
+              password: newUser.password,
+              role: 'user',
+              permissions: newUser.permissions
+          });
+
+          if (result.success) {
+              setIsUserModalOpen(false);
+              setNewUser({
+                name: '',
+                username: '',
+                password: '',
+                permissions: {
+                  canSell: true,
+                  canManageInvoices: false,
+                  canManageStock: false,
+                  canManageContacts: false,
+                  canManageAccounting: false,
+                  canViewReports: false,
+                  canManageSettings: false
+                }
+              });
+              alert(isRTL ? 'تم إضافة المستخدم بنجاح' : 'User added successfully');
+          } else {
+              alert(result.message);
+          }
       }
   };
 
@@ -185,7 +251,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                         {isRTL ? 'إدارة المستخدمين والموظفين' : 'User & Employee Management'}
                     </h3>
                     <button 
-                        onClick={() => setIsUserModalOpen(true)}
+                        onClick={handleOpenAddUser}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm font-bold"
                     >
                         <Plus size={18} />
@@ -196,7 +262,15 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Current User Card */}
                     <div className="p-4 border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 rounded-xl relative">
-                         <div className="absolute top-4 end-4">
+                         <div className="absolute top-4 end-4 flex items-center gap-2">
+                            {/* Edit Current User */}
+                            <button 
+                                onClick={() => currentUser && handleOpenEditUser(currentUser)}
+                                className="p-1.5 bg-white/80 hover:bg-white text-gray-600 rounded-lg transition-colors border border-green-100 shadow-sm"
+                                title={isRTL ? 'تعديل بياناتي' : 'Edit My Info'}
+                            >
+                                <Edit size={14} />
+                            </button>
                             <span className="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full font-bold">
                                 {isRTL ? 'أنت (المدير)' : 'You (Admin)'}
                             </span>
@@ -231,13 +305,22 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                                     </div>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                title={isRTL ? 'حذف المستخدم' : 'Remove User'}
-                            >
-                                <UserX size={20} />
-                            </button>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => handleOpenEditUser(user)}
+                                    className="p-2 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                    title={isRTL ? 'تعديل البيانات' : 'Edit Info'}
+                                >
+                                    <Edit size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                    title={isRTL ? 'حذف المستخدم' : 'Remove User'}
+                                >
+                                    <UserX size={20} />
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -301,19 +384,19 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
 
       </div>
 
-      {/* Add User Modal */}
+      {/* Add/Edit User Modal */}
       <Modal
         isOpen={isUserModalOpen}
         onClose={() => setIsUserModalOpen(false)}
-        title={isRTL ? 'إضافة موظف جديد' : 'Add New Employee'}
+        title={editingUserId ? (isRTL ? 'تعديل بيانات المستخدم' : 'Edit User Info') : (isRTL ? 'إضافة موظف جديد' : 'Add New Employee')}
         isRTL={isRTL}
         footer={
             <>
                 <button onClick={() => setIsUserModalOpen(false)} className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
                     {isRTL ? 'إلغاء' : 'Cancel'}
                 </button>
-                <button onClick={handleAddUser} className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-bold">
-                    {isRTL ? 'إضافة' : 'Add'}
+                <button onClick={handleSaveUser} className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-bold">
+                    {isRTL ? (editingUserId ? 'تحديث' : 'إضافة') : (editingUserId ? 'Update' : 'Add')}
                 </button>
             </>
         }
@@ -341,7 +424,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                   <div>
                       <label className="block text-sm font-medium mb-1">{isRTL ? 'كلمة المرور' : 'Password'}</label>
                       <input 
-                        type="password" 
+                        type="text" 
                         value={newUser.password} 
                         onChange={e => setNewUser({...newUser, password: e.target.value})}
                         className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"

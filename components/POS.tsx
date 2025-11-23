@@ -645,7 +645,10 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
 // --- 3. TERMINAL COMPONENT (Original POS Logic) ---
 const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, onExit }) => {
   const { products, currency, addInvoice, storeName } = useData();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+      const saved = localStorage.getItem('milano_pos_cart');
+      return saved ? JSON.parse(saved) : [];
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
 
@@ -655,6 +658,10 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
       'USD': isRTL ? 'دولار' : 'USD',
   };
   const currencyLabel = currencyLabels[currency];
+
+  useEffect(() => {
+    localStorage.setItem('milano_pos_cart', JSON.stringify(cart));
+  }, [cart]);
 
   useEffect(() => {
     if (products.length > 0) {
@@ -732,6 +739,37 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
       });
 
       handlePrint(invNumber);
+      setCart([]);
+  };
+
+  const handleSave = () => {
+      if (cart.length === 0) return;
+      const invNumber = `ORD-${Date.now().toString().substr(-6)}`; // ORD for Order
+      
+      addInvoice({
+          number: invNumber,
+          date: new Date().toISOString().split('T')[0],
+          dueDate: new Date().toISOString().split('T')[0],
+          contactName: isRTL ? 'طلب خارجي/أونلاين' : 'Online/External Order',
+          contactId: '0', 
+          total: total,
+          paidAmount: 0,
+          remainingAmount: total,
+          tax: tax,
+          status: 'pending',
+          type: 'sale',
+          itemsCount: cart.length,
+          items: cart.map(item => ({
+              productId: item.id,
+              productName: item.name,
+              quantity: item.quantity,
+              price: item.priceSell,
+              discount: 0,
+              total: item.quantity * item.priceSell
+          }))
+      });
+      
+      alert(isRTL ? 'تم حفظ الطلب بنجاح (معلق)' : 'Order saved successfully (Pending)');
       setCart([]);
   };
 
@@ -901,11 +939,14 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
                     <span>{total.toLocaleString()} {currencyLabel}</span>
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-                <button onClick={handlePay} className="flex items-center justify-center gap-2 py-3 px-4 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-lg">
-                    <CreditCard size={20} /> {isRTL ? 'دفع' : 'Pay'}
+            <div className="grid grid-cols-3 gap-2">
+                <button onClick={handlePay} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-sm sm:text-base">
+                    <CreditCard size={18} /> {isRTL ? 'دفع' : 'Pay'}
                 </button>
-                <button onClick={() => handlePrint()} className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 transition-colors font-bold">
+                <button onClick={handleSave} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold text-sm sm:text-base">
+                    <Save size={18} /> {isRTL ? 'حفظ' : 'Save'}
+                </button>
+                <button onClick={() => handlePrint()} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 transition-colors font-bold">
                     <Printer size={20} />
                 </button>
             </div>
