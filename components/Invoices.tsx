@@ -53,13 +53,21 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
       inv.type === type
     )
     .sort((a, b) => {
-        // Sort by Date (Descending)
+        // 1. Date Check
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
-        if (dateB !== dateA) {
-            return dateB - dateA;
+        if (dateB !== dateA) return dateB - dateA;
+
+        // 2. CreatedAt Check (New vs Old) - Prefer items with timestamp
+        if (a.createdAt && !b.createdAt) return -1; // a is newer
+        if (!a.createdAt && b.createdAt) return 1;  // b is newer
+
+        // 3. Both have createdAt: Compare exact times
+        if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
-        // If same date, sort by Number (Descending) to get newest created first
+
+        // 4. Fallback
         return b.number.localeCompare(a.number);
     });
 
@@ -195,6 +203,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             status: newInvoiceData.status,
             type: type,
             itemsCount: newInvoiceData.items.length,
+            createdAt: new Date().toISOString(), // Add createdAt
             items: savedItems,
             notes: newInvoiceData.notes
         });

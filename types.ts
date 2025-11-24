@@ -82,6 +82,7 @@ export interface Invoice extends StoreData {
   paidAmount: number;
   remainingAmount: number;
   notes?: string;
+  createdAt?: string; // Added for accurate sorting
 }
 
 export interface Bond extends StoreData {

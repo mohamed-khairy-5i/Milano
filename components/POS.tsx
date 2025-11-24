@@ -57,6 +57,29 @@ const POSDashboard: React.FC<{ isRTL: boolean; onViewChange: (v: POSView) => voi
     };
     const currencyLabel = currencyLabels[currency];
 
+    // Get Recent Activity (Sorted by Creation Time Descending)
+    const recentInvoices = invoices
+        .filter(i => i.type === 'sale')
+        .sort((a, b) => {
+            // 1. Date Check
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+
+            // 2. CreatedAt Check (New vs Old) - Prefer items with timestamp
+            if (a.createdAt && !b.createdAt) return -1; // a is newer
+            if (!a.createdAt && b.createdAt) return 1;  // b is newer
+
+            // 3. Both have createdAt: Compare exact times
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+
+            // 4. Fallback
+            return b.number.localeCompare(a.number);
+        })
+        .slice(0, 5);
+
     return (
         <div className="p-6 max-w-6xl mx-auto h-full flex flex-col animate-fade-in overflow-y-auto custom-scrollbar">
             <div className="mb-8 text-center md:text-start">
@@ -118,10 +141,12 @@ const POSDashboard: React.FC<{ isRTL: boolean; onViewChange: (v: POSView) => voi
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {invoices.filter(i => i.type === 'sale').slice(0, 5).map(inv => (
+                            {recentInvoices.map(inv => (
                                 <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                     <td className="px-6 py-3 font-medium">{inv.number}</td>
-                                    <td className="px-6 py-3 text-gray-500">{inv.date}</td>
+                                    <td className="px-6 py-3 text-gray-500">
+                                        {inv.createdAt ? new Date(inv.createdAt).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'}) : inv.date}
+                                    </td>
                                     <td className="px-6 py-3 font-bold">{inv.total.toLocaleString()}</td>
                                     <td className="px-6 py-3">
                                         <span className={`px-2 py-1 rounded-full text-xs ${inv.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
@@ -133,7 +158,7 @@ const POSDashboard: React.FC<{ isRTL: boolean; onViewChange: (v: POSView) => voi
                                     </td>
                                 </tr>
                             ))}
-                             {invoices.filter(i => i.type === 'sale').length === 0 && (
+                             {recentInvoices.length === 0 && (
                                 <tr><td colSpan={4} className="p-6 text-center text-gray-400">{isRTL ? 'لا توجد عمليات' : 'No activity'}</td></tr>
                             )}
                         </tbody>
@@ -165,13 +190,21 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
              i.contactName.toLowerCase().includes(searchTerm.toLowerCase()))
         )
         .sort((a, b) => {
-            // Sort by Date (Descending)
+            // 1. Date Check
             const dateA = new Date(a.date).getTime();
             const dateB = new Date(b.date).getTime();
-            if (dateB !== dateA) {
-                return dateB - dateA;
+            if (dateB !== dateA) return dateB - dateA;
+
+            // 2. CreatedAt Check (New vs Old) - Prefer items with timestamp
+            if (a.createdAt && !b.createdAt) return -1; // a is newer
+            if (!a.createdAt && b.createdAt) return 1;  // b is newer
+
+            // 3. Both have createdAt: Compare exact times
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             }
-            // If same date, sort by Number (Descending) to get newest created first
+
+            // 4. Fallback
             return b.number.localeCompare(a.number);
         });
 
@@ -456,7 +489,10 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                                     {inv.number}
                                     {inv.status === 'cancelled' && <span className="text-xs text-red-500 mx-2">({isRTL ? 'ملغي' : 'Cancelled'})</span>}
                                 </td>
-                                <td className="px-6 py-4">{inv.date}</td>
+                                <td className="px-6 py-4">
+                                    {inv.date}
+                                    {inv.createdAt && <span className="block text-xs text-gray-400">{new Date(inv.createdAt).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', {hour:'2-digit', minute:'2-digit'})}</span>}
+                                </td>
                                 <td className="px-6 py-4">{inv.contactName}</td>
                                 <td className="px-6 py-4 font-bold">{inv.total.toLocaleString()}</td>
                                 <td className="px-6 py-4 text-center">
@@ -770,6 +806,7 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
           status: 'paid',
           type: 'sale',
           itemsCount: cart.length,
+          createdAt: new Date().toISOString(), // Add createdAt
           items: cart.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -802,6 +839,7 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
           status: 'pending',
           type: 'sale',
           itemsCount: cart.length,
+          createdAt: new Date().toISOString(), // Add createdAt
           items: cart.map(item => ({
               productId: item.id,
               productName: item.name,
