@@ -126,7 +126,7 @@ const App: React.FC = () => {
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <div className="hidden md:flex items-center gap-2">
-                <img src="https://drive.google.com/uc?export=view&id=1tHpMsNDvoHpcQZj23a9uyLnLb2Ei6-3V" alt="Logo" className="w-8 h-8 object-contain" />
+                <img src="https://www.dropbox.com/scl/fi/m8c5nci2qyhena9tj257s/IMG-20251125-WA0001.jpg?rlkey=og66jub7gq19icnrf67ug27xh&st=o6qmxip1&raw=1" alt="Logo" className="w-8 h-8 object-contain" />
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white">
                     {storeName}
                 </h2>

@@ -85,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : ''}`}>
              {/* Logo */}
             <div className="flex items-center gap-2 font-bold text-xl text-gray-800 dark:text-white">
-                <img src="https://drive.google.com/uc?export=view&id=1tHpMsNDvoHpcQZj23a9uyLnLb2Ei6-3V" alt="Logo" className="w-8 h-8 object-contain" />
+                <img src="https://www.dropbox.com/scl/fi/m8c5nci2qyhena9tj257s/IMG-20251125-WA0001.jpg?rlkey=og66jub7gq19icnrf67ug27xh&st=o6qmxip1&raw=1" alt="Logo" className="w-8 h-8 object-contain" />
                 <span>{storeName}</span>
             </div>
             
