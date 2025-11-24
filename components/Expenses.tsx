@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DollarSign, Plus, Calendar, Trash2, Edit, PieChart, Save, Printer, Search } from 'lucide-react';
 import { useData } from '../DataContext';
@@ -23,8 +22,13 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
       'YER': isRTL ? 'ريال يمني' : 'YER',
       'SAR': isRTL ? 'ريال سعودي' : 'SAR',
       'USD': isRTL ? 'دولار' : 'USD',
+      'AED': isRTL ? 'درهم إماراتي' : 'AED',
   };
   const currencyLabel = currencyLabels[currency];
+
+  const formatCurrency = (val: number) => {
+    return `${val.toLocaleString()} ${currencyLabel}`;
+  };
 
   // Category Translation Helper
   const getCategoryLabel = (cat: string) => {
@@ -45,34 +49,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
     e.amount.toString().includes(searchTerm)
   );
 
-  // Calculations based on filtered (or all) expenses? Usually stats are for ALL, list is filtered.
-  // Let's keep stats for ALL expenses for accuracy of "Total Expenses" regardless of search.
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
-
-  // This Month Expenses
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const thisMonthExpenses = expenses.filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-  }).reduce((acc, curr) => acc + curr.amount, 0);
-
-  // Top Category
-  const categoryTotals: Record<string, number> = {};
-  expenses.forEach(e => {
-      categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
-  });
-  
-  let topCategoryKey = '-';
-  let topCategoryAmount = 0;
-  Object.entries(categoryTotals).forEach(([cat, amount]) => {
-      if (amount > topCategoryAmount) {
-          topCategoryAmount = amount;
-          topCategoryKey = cat;
-      }
-  });
-  const topCategoryLabel = getCategoryLabel(topCategoryKey);
 
   const handleOpenAdd = () => {
     setCurrentExpense({
@@ -208,9 +185,8 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
               </div>
               
               <div class="row"><span class="label">${isRTL ? 'التاريخ' : 'Date'}</span><span class="value">${expense.date}</span></div>
-              <div class="row"><span class="label">${isRTL ? 'البند / العنوان' : 'Title'}</span><span class="value">${expense.title}</span></div>
+              <div class="row"><span class="label">${isRTL ? 'العنوان/البند' : 'Title'}</span><span class="value">${expense.title}</span></div>
               <div class="row"><span class="label">${isRTL ? 'التصنيف' : 'Category'}</span><span class="value">${getCategoryLabel(expense.category)}</span></div>
-              ${expense.description ? `<div class="row"><span class="label">${isRTL ? 'الوصف' : 'Description'}</span><span class="value">${expense.description}</span></div>` : ''}
               
               <div class="amount-box">
                   ${expense.amount.toLocaleString()} ${currencyLabel}
@@ -230,152 +206,133 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
   };
 
   return (
-    <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-l-4 border-red-500">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'إجمالي المصروفات' : 'Total Expenses'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
-                        {totalExpenses.toLocaleString()}
-                        <span className="text-sm font-normal text-gray-500">{currencyLabel}</span>
-                    </h3>
+    <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
+       {/* Header */}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+           {isRTL ? 'المصروفات' : 'Expenses'}
+        </h2>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative flex-1 sm:flex-none">
+                <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                    <Search size={18} />
                 </div>
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-500">
-                    <DollarSign size={24} />
-                </div>
+                <input 
+                    type="text" 
+                    className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                    placeholder={isRTL ? "بحث في المصروفات..." : "Search expenses..."}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
-             <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'مصروفات هذا الشهر' : 'This Month'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1 flex items-baseline gap-1">
-                        {thisMonthExpenses.toLocaleString()}
-                        <span className="text-sm font-normal text-gray-500">{currencyLabel}</span>
-                    </h3>
-                </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600">
-                    <Calendar size={24} />
-                </div>
-            </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-l-4 border-purple-500">
-             <div className="flex justify-between items-start">
-                <div>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'أعلى تصنيف' : 'Top Category'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{topCategoryLabel}</h3>
-                </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600">
-                    <PieChart size={24} />
-                </div>
-            </div>
+
+            <button 
+                onClick={handlePrintList}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <Printer size={18} />
+                <span className="hidden sm:inline">{isRTL ? 'طباعة تقرير' : 'Print Report'}</span>
+            </button>
+
+            <button 
+                onClick={handleOpenAdd}
+                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm text-sm font-bold shrink-0"
+            >
+                <Plus size={18} />
+                <span>{isRTL ? 'تسجيل مصروف' : 'Add Expense'}</span>
+            </button>
         </div>
       </div>
 
-      {/* List */}
-      <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-               {isRTL ? 'سجل المصروفات' : 'Expense Log'}
-            </h2>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-                {/* Search Bar */}
-                <div className="relative flex-1 sm:flex-none">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
-                        <Search size={18} />
-                    </div>
-                    <input 
-                        type="text" 
-                        className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
-                        placeholder={isRTL ? "بحث عن مصروف..." : "Search expenses..."}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                <div className="flex gap-2">
-                    <button 
-                        onClick={handlePrintList}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold"
-                    >
-                        <Printer size={18} />
-                        <span className="hidden sm:inline">{isRTL ? 'طباعة' : 'Print'}</span>
-                    </button>
-                    <button 
-                        onClick={handleOpenAdd}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap"
-                    >
-                        <Plus size={18} />
-                        <span>{isRTL ? 'مصروف جديد' : 'Add Expense'}</span>
-                    </button>
-                </div>
-            </div>
-         </div>
-         
-         <div className="flex-1 overflow-auto p-0">
-            <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
-                    <tr>
-                        <th scope="col" className="px-6 py-3 w-16">{isRTL ? 'الكود' : 'Code'}</th>
-                        <th scope="col" className="px-6 py-3">{isRTL ? 'البند' : 'Title'}</th>
-                        <th scope="col" className="px-6 py-3">{isRTL ? 'التصنيف' : 'Category'}</th>
-                        <th scope="col" className="px-6 py-3">{isRTL ? 'التاريخ' : 'Date'}</th>
-                        <th scope="col" className="px-6 py-3">{isRTL ? 'المبلغ' : 'Amount'}</th>
-                        <th scope="col" className="px-6 py-3 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
+      {/* Table */}
+      <div className="flex-1 overflow-auto border border-gray-100 dark:border-gray-700 rounded-lg">
+        <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
+            <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0">
+                <tr>
+                    <th scope="col" className="px-6 py-4 text-start w-16">{isRTL ? 'م' : '#'}</th>
+                    <th scope="col" className="px-6 py-4 text-start">{isRTL ? 'البند' : 'Title'}</th>
+                    <th scope="col" className="px-6 py-4 text-start">{isRTL ? 'التصنيف' : 'Category'}</th>
+                    <th scope="col" className="px-6 py-4 text-start">{isRTL ? 'التاريخ' : 'Date'}</th>
+                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المبلغ' : 'Amount'}</th>
+                    <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                {filteredExpenses.map((expense, index) => (
+                    <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-start">
+                            {index + 1}
+                        </td>
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-start">
+                            {expense.title}
+                        </td>
+                        <td className="px-6 py-4 text-start">
+                             <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                {getCategoryLabel(expense.category)}
+                            </span>
+                        </td>
+                        <td className="px-6 py-4 text-start text-gray-500">
+                            {expense.date}
+                        </td>
+                        <td className="px-6 py-4 text-end font-bold text-red-600 dir-ltr">
+                            {formatCurrency(expense.amount)}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                                <button 
+                                    onClick={(e) => handleOpenEdit(expense, e)}
+                                    className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
+                                    title={isRTL ? 'تعديل' : 'Edit'}
+                                    type="button"
+                                >
+                                    <Edit size={16} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handlePrintRow(expense, e)}
+                                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
+                                    title={isRTL ? 'طباعة' : 'Print'}
+                                    type="button"
+                                >
+                                    <Printer size={16} />
+                                </button>
+                                <button 
+                                    onClick={(e) => handleDelete(expense.id, e)}
+                                    className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
+                                    title={isRTL ? 'حذف' : 'Delete'}
+                                    type="button"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </td>
                     </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredExpenses.map((expense, index) => (
-                        <tr key={expense.id} className="bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
-                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{index + 1}</td>
-                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{expense.title}</td>
-                            <td className="px-6 py-4">{getCategoryLabel(expense.category)}</td>
-                            <td className="px-6 py-4">{expense.date}</td>
-                            <td className="px-6 py-4 font-bold">{expense.amount.toLocaleString()} {currencyLabel}</td>
-                            <td className="px-6 py-4 text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                    <button 
-                                        onClick={(e) => handleOpenEdit(expense, e)}
-                                        className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600"
-                                    >
-                                        <Edit size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={(e) => handlePrintRow(expense, e)}
-                                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400"
-                                    >
-                                        <Printer size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={(e) => handleDelete(expense.id, e)}
-                                        className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                    {filteredExpenses.length === 0 && (
-                         <tr>
-                            <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
-                                {isRTL ? 'لا توجد مصروفات' : 'No expenses found'}
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-         </div>
+                ))}
+                {filteredExpenses.length === 0 && (
+                    <tr>
+                        <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                            {isRTL ? 'لا توجد مصروفات' : 'No expenses found'}
+                        </td>
+                    </tr>
+                )}
+            </tbody>
+             <tfoot className="bg-gray-50 dark:bg-gray-900/50 font-bold border-t border-gray-200 dark:border-gray-700 sticky bottom-0">
+                 <tr>
+                    <td colSpan={4} className="px-6 py-4 text-end font-bold">{isRTL ? 'الإجمالي' : 'Total'}</td>
+                    <td className="px-6 py-4 text-end font-bold text-red-600 dark:text-red-400">
+                        {formatCurrency(totalExpenses)}
+                    </td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
       </div>
 
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={isEditing ? (isRTL ? 'تعديل مصروف' : 'Edit Expense') : (isRTL ? 'إضافة مصروف جديد' : 'Add New Expense')}
+        title={currentExpense.id ? (isRTL ? 'تعديل مصروف' : 'Edit Expense') : (isRTL ? 'تسجيل مصروف جديد' : 'Add New Expense')}
         isRTL={isRTL}
         footer={
             <>
@@ -395,18 +352,19 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                     type="text" 
                     value={currentExpense.title || ''}
                     onChange={e => setCurrentExpense({ ...currentExpense, title: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    placeholder={isRTL ? 'مثال: فاتورة كهرباء' : 'e.g. Electricity Bill'}
                 />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'المبلغ' : 'Amount'}</label>
                     <input 
                         type="number" 
                         value={currentExpense.amount || ''}
                         onChange={e => setCurrentExpense({ ...currentExpense, amount: Number(e.target.value) })}
-                        className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                     />
                 </div>
                  <div>
@@ -415,17 +373,17 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                         type="date" 
                         value={currentExpense.date || ''}
                         onChange={e => setCurrentExpense({ ...currentExpense, date: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                     />
                 </div>
             </div>
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'التصنيف' : 'Category'}</label>
-                 <select 
+                <select 
                     value={currentExpense.category || ''}
                     onChange={e => setCurrentExpense({ ...currentExpense, category: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                 >
                     <option value="">{isRTL ? 'اختر تصنيف' : 'Select Category'}</option>
                     <option value="Utilities">{isRTL ? 'فواتير وخدمات' : 'Utilities'}</option>
@@ -437,12 +395,12 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'الوصف' : 'Description'}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'ملاحظات إضافية' : 'Additional Notes'}</label>
                 <textarea 
-                    rows={3}
                     value={currentExpense.description || ''}
                     onChange={e => setCurrentExpense({ ...currentExpense, description: e.target.value })}
-                    className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                    rows={3}
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                 />
             </div>
         </div>

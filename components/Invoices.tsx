@@ -76,6 +76,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         'YER': isRTL ? 'ريال يمني' : 'YER',
         'SAR': isRTL ? 'ريال سعودي' : 'SAR',
         'USD': isRTL ? 'دولار' : 'USD',
+        'AED': isRTL ? 'درهم إماراتي' : 'AED',
     };
     return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };

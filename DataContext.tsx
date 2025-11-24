@@ -16,7 +16,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 
-export type Currency = 'YER' | 'SAR' | 'USD';
+export type Currency = 'YER' | 'SAR' | 'USD' | 'AED';
 
 interface DataContextType {
   currentUser: User | null;

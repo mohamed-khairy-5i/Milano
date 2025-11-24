@@ -11,7 +11,7 @@ import {
   Monitor, 
   History, 
   ArrowRight, 
-  ArrowLeft,
+  ArrowLeft, 
   FileText,
   BarChart3,
   Edit,
@@ -53,6 +53,7 @@ const POSDashboard: React.FC<{ isRTL: boolean; onViewChange: (v: POSView) => voi
         'YER': isRTL ? 'ريال يمني' : 'YER',
         'SAR': isRTL ? 'ريال سعودي' : 'SAR',
         'USD': isRTL ? 'دولار' : 'USD',
+        'AED': isRTL ? 'درهم إماراتي' : 'AED',
     };
     const currencyLabel = currencyLabels[currency];
 
@@ -680,6 +681,7 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
       'YER': isRTL ? 'ريال يمني' : 'YER',
       'SAR': isRTL ? 'ريال سعودي' : 'SAR',
       'USD': isRTL ? 'دولار' : 'USD',
+      'AED': isRTL ? 'درهم إماراتي' : 'AED',
   };
   const currencyLabel = currencyLabels[currency];
 

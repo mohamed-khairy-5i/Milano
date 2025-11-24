@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Filter, Trash2, FileText, Search, Printer, Edit } from 'lucide-react';
 import { Bond } from '../types';
@@ -138,6 +139,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
       'YER': isRTL ? 'ريال يمني' : 'YER',
       'SAR': isRTL ? 'ريال سعودي' : 'SAR',
       'USD': isRTL ? 'دولار' : 'USD',
+      'AED': isRTL ? 'درهم إماراتي' : 'AED',
   };
 
   const formatCurrency = (val: number, curr: string) => {
@@ -571,6 +573,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                         <option value="YER">{isRTL ? 'ريال يمني' : 'YER'}</option>
                         <option value="SAR">{isRTL ? 'ريال سعودي' : 'SAR'}</option>
                         <option value="USD">{isRTL ? 'دولار أمريكي' : 'USD'}</option>
+                        <option value="AED">{isRTL ? 'درهم إماراتي' : 'AED'}</option>
                     </select>
                 </div>
             </div>

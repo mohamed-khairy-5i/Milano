@@ -28,6 +28,10 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
   const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
   const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
 
+  // Client requested totals for Unit Prices
+  const totalUnitCost = filteredProducts.reduce((sum, p) => sum + p.priceBuy, 0);
+  const totalUnitSell = filteredProducts.reduce((sum, p) => sum + p.priceSell, 0);
+
   const handleOpenAdd = () => {
     setCurrentProduct({
       code: '',
@@ -210,6 +214,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
         'YER': isRTL ? 'ريال يمني' : 'YER',
         'SAR': isRTL ? 'ريال سعودي' : 'SAR',
         'USD': isRTL ? 'دولار' : 'USD',
+        'AED': isRTL ? 'درهم إماراتي' : 'AED',
     };
     return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };

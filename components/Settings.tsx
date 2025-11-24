@@ -372,7 +372,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                     {isRTL ? 'إعدادات العملة' : 'Currency Settings'}
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
-                    {['YER', 'SAR', 'USD'].map(curr => (
+                    {['YER', 'SAR', 'USD', 'AED'].map(curr => (
                          <div 
                             key={curr}
                             onClick={() => setCurrency(curr as any)}

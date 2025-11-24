@@ -48,6 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isRTL }) => {
       'YER': isRTL ? 'ريال يمني' : 'YER',
       'SAR': isRTL ? 'ريال سعودي' : 'SAR',
       'USD': isRTL ? 'دولار' : 'USD',
+      'AED': isRTL ? 'درهم إماراتي' : 'AED',
   };
   const currencyLabel = currencyLabels[currency];
 

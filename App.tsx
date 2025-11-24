@@ -141,6 +141,7 @@ const App: React.FC = () => {
                <option value="YER">{isRTL ? 'ريال يمني' : 'YER'}</option>
                <option value="SAR">{isRTL ? 'ريال سعودي' : 'SAR'}</option>
                <option value="USD">{isRTL ? 'دولار أمريكي' : 'USD'}</option>
+               <option value="AED">{isRTL ? 'درهم إماراتي' : 'AED'}</option>
              </select>
 
              {/* Icons */}
