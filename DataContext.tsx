@@ -41,29 +41,29 @@ interface DataContextType {
   
   updateStoreSettings: (data: { name: string }) => Promise<void>;
 
-  addProduct: (product: Omit<Product, 'id' | 'storeId'>) => void;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Omit<Product, 'id' | 'storeId'>) => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 
-  addContact: (contact: Omit<Contact, 'id' | 'storeId'>) => void;
-  updateContact: (contact: Contact) => void;
-  deleteContact: (id: string) => void;
+  addContact: (contact: Omit<Contact, 'id' | 'storeId'>) => Promise<void>;
+  updateContact: (contact: Contact) => Promise<void>;
+  deleteContact: (id: string) => Promise<void>;
 
-  addInvoice: (invoice: Omit<Invoice, 'id' | 'storeId'>) => void;
-  updateInvoice: (invoice: Invoice) => void;
-  deleteInvoice: (id: string) => void;
+  addInvoice: (invoice: Omit<Invoice, 'id' | 'storeId'>) => Promise<void>;
+  updateInvoice: (invoice: Invoice) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
 
-  addExpense: (expense: Omit<Expense, 'id' | 'storeId'>) => void;
-  updateExpense: (expense: Expense) => void;
-  deleteExpense: (id: string) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'storeId'>) => Promise<void>;
+  updateExpense: (expense: Expense) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 
-  addBond: (bond: Omit<Bond, 'id' | 'storeId'>) => void;
-  updateBond: (bond: Bond) => void;
-  deleteBond: (id: string) => void;
+  addBond: (bond: Omit<Bond, 'id' | 'storeId'>) => Promise<void>;
+  updateBond: (bond: Bond) => Promise<void>;
+  deleteBond: (id: string) => Promise<void>;
 
-  addAccount: (account: Omit<Account, 'id' | 'storeId'>) => void;
-  updateAccount: (account: Account) => void;
-  deleteAccount: (id: string) => void;
+  addAccount: (account: Omit<Account, 'id' | 'storeId'>) => Promise<void>;
+  updateAccount: (account: Account) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
 
   resetData: () => Promise<void>;
 }
@@ -339,12 +339,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateUser = async (userUpdates: Partial<User> & { id: string }) => {
       try {
           const { id, ...data } = userUpdates;
-          // Note: Username uniqueness check is skipped for updates for simplicity, 
-          // but should be handled in a real-world scenario.
-          
           await updateDoc(doc(db, 'users', id), data as any);
           
-          // If updating current user (self), update local state immediately
           if (currentUser && currentUser.id === id) {
               setCurrentUser(prev => prev ? { ...prev, ...userUpdates } as User : null);
           }
@@ -431,14 +427,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (e) { console.error(e); }
   };
 
-  const addProduct = (product: Omit<Product, 'id' | 'storeId'>) => addWithStoreId('products', product);
-  const addContact = (contact: Omit<Contact, 'id' | 'storeId'>) => addWithStoreId('contacts', contact);
-  const addInvoice = (invoice: Omit<Invoice, 'id' | 'storeId'>) => addWithStoreId('invoices', invoice);
-  const addExpense = (expense: Omit<Expense, 'id' | 'storeId'>) => addWithStoreId('expenses', expense);
-  const addBond = (bond: Omit<Bond, 'id' | 'storeId'>) => addWithStoreId('bonds', bond);
-  const addAccount = (account: Omit<Account, 'id' | 'storeId'>) => addWithStoreId('accounts', account);
+  // Standard operations now return Promise<void> implcitly because of async
+  const addProduct = async (product: Omit<Product, 'id' | 'storeId'>) => await addWithStoreId('products', product);
+  const addContact = async (contact: Omit<Contact, 'id' | 'storeId'>) => await addWithStoreId('contacts', contact);
+  const addInvoice = async (invoice: Omit<Invoice, 'id' | 'storeId'>) => await addWithStoreId('invoices', invoice);
+  const addExpense = async (expense: Omit<Expense, 'id' | 'storeId'>) => await addWithStoreId('expenses', expense);
+  const addBond = async (bond: Omit<Bond, 'id' | 'storeId'>) => await addWithStoreId('bonds', bond);
+  const addAccount = async (account: Omit<Account, 'id' | 'storeId'>) => await addWithStoreId('accounts', account);
 
-  // Updates & Deletes (Standard by ID)
+  // Updates & Deletes
   const updateProduct = async (product: Product) => {
     const { id, ...data } = product;
     try { await updateDoc(doc(db, 'products', id), data as any); } catch(e) { console.error(e); }

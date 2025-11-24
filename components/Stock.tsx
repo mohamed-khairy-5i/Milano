@@ -110,7 +110,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
               .img-box { width: 50px; height: 50px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; display: flex; justify-content: center; align-items: center; margin: 0 auto; }
               .img-box img { width: 100%; height: 100%; object-fit: cover; }
               .footer-row { background-color: #f3f4f6; font-weight: bold; font-size: 14px; }
-              .summary-box { display: flex; justify-content: center; gap: 30px; margin-top: 10px; font-size: 14px; font-weight: bold; background: #f9fafb; padding: 10px; border-radius: 8px; }
+              .summary-box { display: flex; justify-content: center; gap: 30px; margin-top: 10px; font-size: 14px; font-weight: bold; background: #f9fafb; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
               @media print { .print-btn { display: none; } }
               .print-btn { padding: 10px 20px; background: #000; color: #fff; border: none; cursor: pointer; margin-bottom: 20px; border-radius: 5px; }
           </style>

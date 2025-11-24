@@ -15,7 +15,6 @@ import {
   FileText,
   BarChart3,
   Edit,
-  X,
   Save
 } from 'lucide-react';
 import { useData } from '../DataContext';
@@ -644,11 +643,18 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
 
 // --- 3. TERMINAL COMPONENT (Original POS Logic) ---
 const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, onExit }) => {
-  const { products, currency, addInvoice, storeName } = useData();
+  const { products, currency, addInvoice, storeName, updateProduct } = useData();
+  
+  // Initialize cart from localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
       const saved = localStorage.getItem('milano_pos_cart');
       return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
 
@@ -659,6 +665,7 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
   };
   const currencyLabel = currencyLabels[currency];
 
+  // Persist cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('milano_pos_cart', JSON.stringify(cart));
   }, [cart]);
@@ -711,11 +718,26 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
   const tax = calculateTax(subTotal);
   const total = subTotal + tax;
 
-  const handlePay = () => {
+  const handlePay = async () => {
       if (cart.length === 0) return;
       const invNumber = `POS-${Date.now().toString().substr(-6)}`;
       
-      addInvoice({
+      // Deduct Stock (Async to ensure it completes)
+      const stockUpdates = cart.map(item => {
+          const product = products.find(p => p.id === item.id);
+          if (product) {
+              return updateProduct({
+                  ...product,
+                  stock: Math.max(0, product.stock - item.quantity)
+              });
+          }
+          return Promise.resolve();
+      });
+      
+      await Promise.all(stockUpdates);
+
+      // Create Invoice
+      await addInvoice({
           number: invNumber,
           date: new Date().toISOString().split('T')[0],
           dueDate: new Date().toISOString().split('T')[0],
@@ -740,13 +762,14 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
 
       handlePrint(invNumber);
       setCart([]);
+      localStorage.removeItem('milano_pos_cart');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
       if (cart.length === 0) return;
       const invNumber = `ORD-${Date.now().toString().substr(-6)}`; // ORD for Order
       
-      addInvoice({
+      await addInvoice({
           number: invNumber,
           date: new Date().toISOString().split('T')[0],
           dueDate: new Date().toISOString().split('T')[0],
@@ -769,8 +792,9 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
           }))
       });
       
-      alert(isRTL ? 'تم حفظ الطلب بنجاح (معلق)' : 'Order saved successfully (Pending)');
+      alert(isRTL ? 'تم حفظ الطلب كفاتورة معلقة (مسودة) بنجاح.' : 'Order Saved as Pending (Draft) Successfully.');
       setCart([]);
+      localStorage.removeItem('milano_pos_cart');
   };
 
   const handlePrint = (invoiceNumber?: string) => {
