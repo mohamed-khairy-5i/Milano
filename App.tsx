@@ -17,7 +17,7 @@ import { ViewState } from './types';
 import { useData, Currency } from './DataContext';
 
 const App: React.FC = () => {
-  const { currency, setCurrency, currentUser, logoutUser, storeName } = useData();
+  const { currency, setCurrency, currentUser, logoutUser } = useData();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
@@ -126,9 +126,9 @@ const App: React.FC = () => {
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <div className="hidden md:flex items-center gap-2">
-                <img src="https://www.dropbox.com/scl/fi/m8c5nci2qyhena9tj257s/IMG-20251125-WA0001.jpg?rlkey=og66jub7gq19icnrf67ug27xh&st=o6qmxip1&raw=1" alt="Logo" className="w-8 h-8 object-contain" />
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                    {storeName}
+                <img src="https://www.dropbox.com/scl/fi/d5o0abej6u2h2ljsjvhfv/IMG-20251125-WA0002.jpg?rlkey=l82w3l7ax2atf5il7gf7oarp3&st=xg0zjv1m&raw=1" alt="Logo" className="w-8 h-8 object-contain" />
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white uppercase">
+                    {isRTL ? 'ميلانو' : 'MILANO'}
                 </h2>
             </div>
           </div>
