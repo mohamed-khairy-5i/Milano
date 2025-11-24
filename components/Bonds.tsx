@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Filter, Trash2, FileText, Search, Printer, Edit } from 'lucide-react';
 import { Bond } from '../types';
@@ -10,7 +9,7 @@ interface BondsProps {
 }
 
 const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
-  const { bonds, contacts, addBond, updateBond, deleteBond, currency } = useData();
+  const { bonds, contacts, addBond, updateBond, deleteBond, currency: globalCurrency } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Edit State
@@ -24,6 +23,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     entityType: 'customer' | 'supplier';
     entityId: string;
     amount: string;
+    currency: string;
     paymentMethod: 'cash' | 'bank';
     notes: string;
   }>({
@@ -32,6 +32,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     entityType: 'customer',
     entityId: '',
     amount: '',
+    currency: globalCurrency,
     paymentMethod: 'cash',
     notes: ''
   });
@@ -41,6 +42,20 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     b.entityName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Group totals by currency for proper display
+  const totalsByCurrency = filteredBonds.reduce((acc, bond) => {
+      const curr = bond.currency || globalCurrency;
+      if (!acc[curr]) {
+          acc[curr] = { receipt: 0, payment: 0 };
+      }
+      if (bond.type === 'receipt') {
+          acc[curr].receipt += bond.amount;
+      } else {
+          acc[curr].payment += bond.amount;
+      }
+      return acc;
+  }, {} as Record<string, { receipt: number, payment: number }>);
+
   const handleOpenAdd = () => {
     setEditingId(null);
     setNewBondData({
@@ -49,6 +64,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
         entityType: 'customer',
         entityId: '',
         amount: '',
+        currency: globalCurrency,
         paymentMethod: 'cash',
         notes: ''
     });
@@ -64,6 +80,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
         entityType: bond.entityType,
         entityId: bond.entityId,
         amount: bond.amount.toString(),
+        currency: bond.currency || globalCurrency,
         paymentMethod: bond.paymentMethod,
         notes: bond.notes || ''
     });
@@ -75,6 +92,18 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
 
     const selectedContact = contacts.find(c => c.id === newBondData.entityId);
 
+    const bondPayload = {
+        type: newBondData.type,
+        date: newBondData.date,
+        entityType: newBondData.entityType,
+        entityId: newBondData.entityId,
+        entityName: selectedContact?.name || 'Unknown',
+        amount: Number(newBondData.amount),
+        currency: newBondData.currency,
+        paymentMethod: newBondData.paymentMethod,
+        notes: newBondData.notes
+    };
+
     if (editingId) {
         // Update
         const originalBond = bonds.find(b => b.id === editingId);
@@ -83,28 +112,14 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                 id: editingId,
                 storeId: originalBond.storeId,
                 number: originalBond.number || '',
-                type: newBondData.type,
-                date: newBondData.date,
-                entityType: newBondData.entityType,
-                entityId: newBondData.entityId,
-                entityName: selectedContact?.name || 'Unknown',
-                amount: Number(newBondData.amount),
-                paymentMethod: newBondData.paymentMethod,
-                notes: newBondData.notes
+                ...bondPayload
             });
         }
     } else {
         // Create
         addBond({
           number: `BOND-${Date.now().toString().substr(-4)}`,
-          type: newBondData.type,
-          date: newBondData.date,
-          entityType: newBondData.entityType,
-          entityId: newBondData.entityId,
-          entityName: selectedContact?.name || 'Unknown',
-          amount: Number(newBondData.amount),
-          paymentMethod: newBondData.paymentMethod,
-          notes: newBondData.notes
+          ...bondPayload
         });
     }
 
@@ -119,17 +134,36 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     }
   };
 
+  const currencyLabels: Record<string, string> = {
+      'YER': isRTL ? 'ريال يمني' : 'YER',
+      'SAR': isRTL ? 'ريال سعودي' : 'SAR',
+      'USD': isRTL ? 'دولار' : 'USD',
+  };
+
+  const formatCurrency = (val: number, curr: string) => {
+    return `${val.toLocaleString()} ${currencyLabels[curr] || curr}`;
+  };
+
   const handlePrintReport = () => {
     const printWindow = window.open('', '_blank', 'width=900,height=800');
     if (!printWindow) return;
 
-    const totalReceipts = filteredBonds.filter(b => b.type === 'receipt').reduce((sum, b) => sum + b.amount, 0);
-    const totalPayments = filteredBonds.filter(b => b.type === 'payment').reduce((sum, b) => sum + b.amount, 0);
-    const netTotal = totalReceipts - totalPayments;
-
     const direction = isRTL ? 'rtl' : 'ltr';
     const textAlign = isRTL ? 'right' : 'left';
-    const currencySymbol = currency;
+
+    // Generate totals HTML
+    const totalsHtml = Object.entries(totalsByCurrency).map(([curr, amounts]) => {
+        const safeAmounts = amounts as { receipt: number, payment: number };
+        const net = safeAmounts.receipt - safeAmounts.payment;
+        return `
+            <tr class="total-row">
+                <td colspan="5" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'} (${currencyLabels[curr] || curr})</td>
+                <td style="color: green;">${safeAmounts.receipt.toLocaleString()}</td>
+                <td style="color: red;">${safeAmounts.payment.toLocaleString()}</td>
+                <td style="color: ${net >= 0 ? 'blue' : 'orange'}; font-weight: bold;">${net.toLocaleString()}</td>
+            </tr>
+        `;
+    }).join('');
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -143,7 +177,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
               table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 20px; }
               th { background: #f3f4f6; padding: 10px; text-align: ${textAlign}; border-bottom: 2px solid #ccc; }
               td { padding: 8px; border-bottom: 1px solid #eee; }
-              .total-row { font-weight: bold; background: #f9fafb; }
+              .total-row { font-weight: bold; background: #f9fafb; border-top: 2px solid #ddd; }
               .receipt { color: green; }
               .payment { color: red; }
               @media print { .print-btn { display: none; } }
@@ -162,8 +196,9 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                       <th>${isRTL ? 'التاريخ' : 'Date'}</th>
                       <th>${isRTL ? 'الجهة' : 'Entity'}</th>
                       <th>${isRTL ? 'النوع' : 'Type'}</th>
-                      <th>${isRTL ? 'المبلغ' : 'Amount'}</th>
-                      <th>${isRTL ? 'طريقة الدفع' : 'Method'}</th>
+                      <th>${isRTL ? 'قبض' : 'Receipt'}</th>
+                      <th>${isRTL ? 'صرف' : 'Payment'}</th>
+                      <th>${isRTL ? 'العملة' : 'Currency'}</th>
                   </tr>
               </thead>
               <tbody>
@@ -173,30 +208,17 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                           <td>${bond.number}</td>
                           <td>${bond.date}</td>
                           <td>${bond.entityName}</td>
-                          <td class="${bond.type === 'receipt' ? 'receipt' : 'payment'}">
-                              ${isRTL ? (bond.type === 'receipt' ? 'قبض' : 'صرف') : (bond.type === 'receipt' ? 'Receipt' : 'Payment')}
+                          <td>
+                              ${isRTL ? (bond.paymentMethod === 'cash' ? 'نقدي' : 'بنك') : bond.paymentMethod}
                           </td>
-                          <td style="font-weight: bold;">${bond.amount.toLocaleString()}</td>
-                          <td>${isRTL ? (bond.paymentMethod === 'cash' ? 'نقدي' : 'بنك') : bond.paymentMethod}</td>
+                          <td style="color: green; font-weight: bold;">${bond.type === 'receipt' ? bond.amount.toLocaleString() : '-'}</td>
+                          <td style="color: red; font-weight: bold;">${bond.type === 'payment' ? bond.amount.toLocaleString() : '-'}</td>
+                          <td>${currencyLabels[bond.currency || globalCurrency] || bond.currency}</td>
                       </tr>
                   `).join('')}
               </tbody>
               <tfoot>
-                  <tr class="total-row">
-                      <td colspan="5" style="text-align: center;">${isRTL ? 'إجمالي القبض' : 'Total Receipts'}</td>
-                      <td style="color: green;">${totalReceipts.toLocaleString()} ${currencySymbol}</td>
-                      <td></td>
-                  </tr>
-                   <tr class="total-row">
-                      <td colspan="5" style="text-align: center;">${isRTL ? 'إجمالي الصرف' : 'Total Payments'}</td>
-                      <td style="color: red;">${totalPayments.toLocaleString()} ${currencySymbol}</td>
-                      <td></td>
-                  </tr>
-                   <tr class="total-row" style="background: #e5e7eb; border-top: 2px solid #ccc;">
-                      <td colspan="5" style="text-align: center;">${isRTL ? 'صافي الحركة' : 'Net Movement'}</td>
-                      <td style="color: ${netTotal >= 0 ? 'blue' : 'orange'};">${netTotal.toLocaleString()} ${currencySymbol}</td>
-                      <td></td>
-                  </tr>
+                  ${totalsHtml}
               </tfoot>
           </table>
       </body>
@@ -214,8 +236,9 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
         alert(isRTL ? 'يرجى السماح بالنوافذ المنبثقة للطباعة' : 'Please allow popups to print');
         return;
     }
-    // ... (rest of print logic is unchanged)
-    const currencySymbol = currency;
+    
+    const bondCurrency = bond.currency || globalCurrency;
+    const currencySymbol = currencyLabels[bondCurrency] || bondCurrency;
     const direction = isRTL ? 'rtl' : 'ltr';
     const title = bond.type === 'receipt' 
         ? (isRTL ? 'سند قبض' : 'RECEIPT VOUCHER') 
@@ -239,7 +262,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
               .value { flex: 1; font-weight: bold; color: #000; }
               .amount-box { border: 2px solid #333; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; margin: 30px 0; background: #f9fafb; border-radius: 8px; }
               .footer { display: flex; justify-content: space-between; margin-top: 80px; padding-top: 20px; }
-              .signature { text-align: center; width: 200px; border-top: 1px solid #ccc; padding-top: 10px; }
+              .signature { text-align: center; width: 200px; border-top: 1px solid #333; padding-top: 10px; }
               .print-btn { display: block; width: 100%; padding: 15px; background: #2563eb; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; margin-bottom: 20px; border-radius: 8px; }
               .print-btn:hover { background: #1d4ed8; }
               @media print {
@@ -306,15 +329,6 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
     printWindow.document.close();
   };
 
-  const formatCurrency = (val: number) => {
-    const currencyLabels: Record<string, string> = {
-        'YER': isRTL ? 'ريال يمني' : 'YER',
-        'SAR': isRTL ? 'ريال سعودي' : 'SAR',
-        'USD': isRTL ? 'دولار' : 'USD',
-    };
-    return `${val.toLocaleString()} ${currencyLabels[currency]}`;
-  };
-
   // Filter contacts based on entityType
   const filteredContacts = contacts.filter(c => c.type === newBondData.entityType);
 
@@ -369,9 +383,9 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'رقم السند' : 'Bond #'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'نوع السند' : 'Type'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'التاريخ' : 'Date'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'العميل / المورد' : 'Client / Supplier'}</th>
+                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'الجهة' : 'Entity'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'المبلغ' : 'Amount'}</th>
-                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'طريقة الدفع' : 'Payment Method'}</th>
+                    <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'طريقة الدفع' : 'Method'}</th>
                     <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                 </tr>
             </thead>
@@ -401,8 +415,8 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                         <td className="px-6 py-4 text-end">
                             {bond.entityName}
                         </td>
-                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
-                            {formatCurrency(bond.amount)}
+                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white dir-ltr">
+                            {formatCurrency(bond.amount, bond.currency || globalCurrency)}
                         </td>
                         <td className="px-6 py-4 text-end">
                             {isRTL 
@@ -448,6 +462,24 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                     </tr>
                 )}
             </tbody>
+            <tfoot className="bg-gray-50 dark:bg-gray-900/50 font-bold border-t border-gray-200 dark:border-gray-700">
+                {Object.entries(totalsByCurrency).map(([curr, amounts]) => {
+                    const safeAmounts = amounts as { receipt: number, payment: number };
+                    return (
+                    <tr key={curr}>
+                        <td colSpan={5} className="px-6 py-3 text-end font-bold">
+                            {isRTL ? 'الإجمالي' : 'Total'} <span className="text-xs font-normal bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded text-gray-700 dark:text-gray-300 mx-2">{currencyLabels[curr]}</span>
+                        </td>
+                        <td className="px-6 py-3 text-end font-bold text-green-600">
+                            {safeAmounts.receipt > 0 ? '+' + safeAmounts.receipt.toLocaleString() : '-'}
+                        </td>
+                        <td className="px-6 py-3 text-end font-bold text-red-600">
+                             {safeAmounts.payment > 0 ? '-' + safeAmounts.payment.toLocaleString() : '-'}
+                        </td>
+                        <td></td>
+                    </tr>
+                )})}
+            </tfoot>
         </table>
       </div>
 
@@ -469,7 +501,6 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
       >
          {/* Modal Form Content */}
         <div className="space-y-4">
-            {/* ... same as before ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'نوع السند' : 'Bond Type'}</label>
@@ -520,7 +551,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'المبلغ' : 'Amount'}</label>
                     <input 
@@ -531,16 +562,29 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'طريقة الدفع' : 'Payment Method'}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'العملة' : 'Currency'}</label>
                     <select 
-                        value={newBondData.paymentMethod}
-                        onChange={e => setNewBondData({ ...newBondData, paymentMethod: e.target.value as 'cash' | 'bank' })}
+                        value={newBondData.currency}
+                        onChange={e => setNewBondData({ ...newBondData, currency: e.target.value })}
                         className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                     >
-                        <option value="cash">{isRTL ? 'نقدي' : 'Cash'}</option>
-                        <option value="bank">{isRTL ? 'بنك' : 'Bank'}</option>
+                        <option value="YER">{isRTL ? 'ريال يمني' : 'YER'}</option>
+                        <option value="SAR">{isRTL ? 'ريال سعودي' : 'SAR'}</option>
+                        <option value="USD">{isRTL ? 'دولار أمريكي' : 'USD'}</option>
                     </select>
                 </div>
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'طريقة الدفع' : 'Payment Method'}</label>
+                <select 
+                    value={newBondData.paymentMethod}
+                    onChange={e => setNewBondData({ ...newBondData, paymentMethod: e.target.value as 'cash' | 'bank' })}
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                >
+                    <option value="cash">{isRTL ? 'نقدي' : 'Cash'}</option>
+                    <option value="bank">{isRTL ? 'بنك' : 'Bank'}</option>
+                </select>
             </div>
 
             <div>

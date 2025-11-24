@@ -93,6 +93,7 @@ export interface Bond extends StoreData {
   entityId: string;
   entityName: string;
   amount: number;
+  currency: string; // Added currency field
   paymentMethod: 'cash' | 'bank';
   notes?: string;
 }
