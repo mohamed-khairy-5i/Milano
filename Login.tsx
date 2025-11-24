@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Lock, User, LogIn, UserPlus, ArrowRight } from 'lucide-react';
+import { Lock, User, LogIn } from 'lucide-react';
 import { useData } from './DataContext';
 
 interface LoginProps {
@@ -9,65 +9,26 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
-  const { loginUser, registerStore } = useData();
-  const [isRegistering, setIsRegistering] = useState(false);
+  const { loginUser } = useData();
   const [isLoading, setIsLoading] = useState(false);
   
   // Form State
-  const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccessMsg('');
     setIsLoading(true);
 
     try {
-      if (isRegistering) {
-          // Register Logic (New Store)
-          if (!name || !username || !password || !confirmPassword) {
-              setError(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
-              setIsLoading(false);
-              return;
-          }
-          if (password !== confirmPassword) {
-              setError(isRTL ? 'كلمات المرور غير متطابقة' : 'Passwords do not match');
-              setIsLoading(false);
-              return;
-          }
-
-          const result = await registerStore({
-              name,
-              username,
-              password,
-              role: 'admin' // External registration is always Admin of their own store
-          });
-
-          if (result.success) {
-              setSuccessMsg(isRTL ? 'تم إنشاء متجرك الجديد بنجاح! يمكنك تسجيل الدخول الآن.' : 'New store created successfully! You can login now.');
-              // Clear form and switch to login
-              setName('');
-              setUsername('');
-              setPassword('');
-              setConfirmPassword('');
-              setTimeout(() => setIsRegistering(false), 2000);
-          } else {
-              setError(isRTL ? 'اسم المستخدم موجود مسبقاً' : 'Username already exists');
-          }
-
+      // Login Logic
+      const result = await loginUser(username, password);
+      if (result.success) {
+          // Auth state update in context triggers re-render in App
       } else {
-          // Login Logic
-          const result = await loginUser(username, password);
-          if (result.success) {
-              // Auth state update in context triggers re-render in App
-          } else {
-              setError(isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password');
-          }
+          setError(isRTL ? 'اسم المستخدم أو كلمة المرور غير صحيحة' : 'Invalid username or password');
       }
     } catch (err) {
       console.error(err);
@@ -77,14 +38,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
     }
   };
 
-  const toggleMode = () => {
-      setIsRegistering(!isRegistering);
-      setError('');
-      setSuccessMsg('');
-      setUsername('');
-      setPassword('');
-  };
-
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4 font-cairo" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden transition-all duration-300">
@@ -92,10 +45,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Milano Store</h1>
             <p className="text-gray-500 dark:text-gray-400">
-              {isRegistering 
-                ? (isRTL ? 'إنشاء متجر جديد (حساب رئيسي)' : 'Create New Store (Admin Account)')
-                : (isRTL ? 'يرجى تسجيل الدخول للمتابعة' : 'Please sign in to continue')
-              }
+              {isRTL ? 'يرجى تسجيل الدخول للمتابعة' : 'Please sign in to continue'}
             </p>
           </div>
 
@@ -104,31 +54,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center font-medium animate-fade-in">
                 {error}
               </div>
-            )}
-            {successMsg && (
-              <div className="p-3 bg-green-50 text-green-600 text-sm rounded-lg text-center font-medium animate-fade-in">
-                {successMsg}
-              </div>
-            )}
-
-            {isRegistering && (
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isRTL ? 'الاسم الكامل' : 'Full Name'}
-                    </label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
-                            <User size={20} />
-                        </div>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="block w-full p-3 ps-10 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            placeholder={isRTL ? "الاسم الكامل" : "Full Name"}
-                        />
-                    </div>
-                </div>
             )}
 
             <div>
@@ -169,26 +94,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
               </div>
             </div>
 
-            {isRegistering && (
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {isRTL ? 'تأكيد كلمة المرور' : 'Confirm Password'}
-                    </label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
-                            <Lock size={20} />
-                        </div>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="block w-full p-3 ps-10 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            placeholder="••••••"
-                        />
-                    </div>
-                </div>
-            )}
-
             <button
               type="submit"
               disabled={isLoading}
@@ -197,25 +102,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, isRTL }) => {
               {isLoading ? (
                 <span>{isRTL ? 'جاري المعالجة...' : 'Processing...'}</span>
               ) : (
-                isRegistering 
-                  ? <><UserPlus size={20} /> <span>{isRTL ? 'إنشاء حساب متجر' : 'Create Store Account'}</span></>
-                  : <><LogIn size={20} /> <span>{isRTL ? 'دخول' : 'Sign In'}</span></>
+                <><LogIn size={20} /> <span>{isRTL ? 'دخول' : 'Sign In'}</span></>
               )}
             </button>
           </form>
-
-          <div className="mt-6 text-center pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                {isRegistering ? (isRTL ? 'لديك حساب بالفعل؟' : 'Already have an account?') : (isRTL ? 'متجر جديد؟' : "New Store?")}
-            </p>
-            <button 
-                onClick={toggleMode}
-                className="text-primary hover:text-blue-700 font-bold text-sm flex items-center justify-center gap-1 mx-auto"
-            >
-                {isRegistering ? (isRTL ? 'تسجيل الدخول' : 'Sign In') : (isRTL ? 'إنشاء حساب جديد (متجر مستقل)' : 'Create New Account (Fresh Store)')}
-                <ArrowRight size={16} className={isRTL ? 'rotate-180' : ''} />
-            </button>
-          </div>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 text-center text-sm text-gray-500 dark:text-gray-400">
           &copy; {new Date().getFullYear()} Milano Store Manager

@@ -34,6 +34,15 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     p.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate Totals for Screen
+  const totalStock = filteredProducts.reduce((sum, p) => sum + p.stock, 0);
+  const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
+  const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
+  
+  // Client requested totals for Unit Prices
+  const totalUnitCost = filteredProducts.reduce((sum, p) => sum + p.priceBuy, 0);
+  const totalUnitSell = filteredProducts.reduce((sum, p) => sum + p.priceSell, 0);
+
   const handleSave = () => {
     if (!adjustment.productId || adjustment.quantity <= 0) return;
 
@@ -88,10 +97,15 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     const textAlign = isRTL ? 'right' : 'left';
     const title = activeTab === 'current' ? (isRTL ? 'تقرير المخزون الحالي' : 'Current Stock Report') : (isRTL ? 'تقرير حركة المخزون' : 'Stock Movement Report');
 
-    // Calculate Totals
+    // Calculate Totals for Print
     const totalStock = filteredProducts.reduce((sum, p) => sum + p.stock, 0);
     const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
     const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
+    const totalSold = filteredProducts.reduce((sum, p) => sum + getSoldQuantity(p.id), 0);
+    
+    // Client requested totals for Unit Prices
+    const totalUnitCost = filteredProducts.reduce((sum, p) => sum + p.priceBuy, 0);
+    const totalUnitSell = filteredProducts.reduce((sum, p) => sum + p.priceSell, 0);
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -140,6 +154,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <th>${isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
                         <th>${isRTL ? 'سعر البيع' : 'Sell Price'}</th>
                         <th>${isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
+                        <th>${isRTL ? 'إجمالي البيع' : 'Total Sell'}</th>
                       ` : `
                         <th>${isRTL ? 'الكمية المباعة' : 'Sold Qty'}</th>
                         <th>${isRTL ? 'المتبقي' : 'Remaining'}</th>
@@ -159,6 +174,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                                 <td>${p.priceBuy.toLocaleString()}</td>
                                 <td>${p.priceSell.toLocaleString()}</td>
                                 <td>${(p.stock * p.priceBuy).toLocaleString()}</td>
+                                <td>${(p.stock * p.priceSell).toLocaleString()}</td>
                             </tr>
                           `;
                       } else {
@@ -188,15 +204,17 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                   <tr class="footer-row">
                       <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
                       <td>${totalStock.toLocaleString()}</td>
-                      <td>-</td>
-                      <td>-</td>
+                      <td>${totalUnitCost.toLocaleString()}</td>
+                      <td>${totalUnitSell.toLocaleString()}</td>
                       <td>${totalCostValue.toLocaleString()}</td>
+                      <td>${totalSellValue.toLocaleString()}</td>
                   </tr>
               </tfoot>
               ` : `
                <tfoot>
                   <tr class="footer-row">
-                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي المخزون المتبقي' : 'Total Remaining Stock'}</td>
+                      <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                      <td>${totalSold.toLocaleString()}</td>
                       <td>${totalStock.toLocaleString()}</td>
                       <td>-</td>
                   </tr>
@@ -296,6 +314,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر التكلفة' : 'Cost Price'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر البيع' : 'Selling Price'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
+                        <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي البيع' : 'Total Sell'}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
@@ -320,16 +339,39 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                             <td className="px-6 py-4 text-end font-medium text-green-600">
                                 {formatCurrency(product.stock * product.priceBuy)}
                             </td>
+                            <td className="px-6 py-4 text-end font-medium text-blue-600">
+                                {formatCurrency(product.stock * product.priceSell)}
+                            </td>
                         </tr>
                     ))}
                     {filteredProducts.length === 0 && (
                         <tr>
-                            <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                            <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                                 {isRTL ? 'لا توجد منتجات' : 'No products found'}
                             </td>
                         </tr>
                     )}
                 </tbody>
+                <tfoot className="bg-gray-50 dark:bg-gray-900/50 font-bold border-t border-gray-200 dark:border-gray-700 sticky bottom-0">
+                     <tr>
+                        <td colSpan={3} className="px-6 py-4 text-end font-bold">{isRTL ? 'الإجمالي' : 'Total'}</td>
+                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                            {totalStock}
+                        </td>
+                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                            {formatCurrency(totalUnitCost)}
+                        </td>
+                        <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                            {formatCurrency(totalUnitSell)}
+                        </td>
+                        <td className="px-6 py-4 text-end font-bold text-green-600 dark:text-green-400">
+                            {formatCurrency(totalCostValue)}
+                        </td>
+                        <td className="px-6 py-4 text-end font-bold text-blue-600 dark:text-blue-400">
+                             {formatCurrency(totalSellValue)}
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         )}
 

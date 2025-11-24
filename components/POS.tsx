@@ -156,11 +156,23 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
     const [selectedProductId, setSelectedProductId] = useState('');
     const [selectedProductQty, setSelectedProductQty] = useState(1);
 
-    const filteredInvoices = invoices.filter(i => 
-        i.type === 'sale' && 
-        (i.number.toLowerCase().includes(searchTerm.toLowerCase()) || 
-         i.contactName.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    // Filter AND Sort (Newest First)
+    const filteredInvoices = invoices
+        .filter(i => 
+            i.type === 'sale' && 
+            (i.number.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             i.contactName.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+        .sort((a, b) => {
+            // Sort by Date (Descending)
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateB !== dateA) {
+                return dateB - dateA;
+            }
+            // If same date, sort by Number (Descending) to get newest created first
+            return b.number.localeCompare(a.number);
+        });
 
     // --- Print Receipt ---
     const handlePrint = (invoice: Invoice, e?: React.MouseEvent) => {
@@ -261,6 +273,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
             <table>
                 <thead>
                     <tr>
+                        <th>${isRTL ? 'الكود' : 'Code'}</th>
                         <th>${isRTL ? 'رقم الإيصال' : 'Receipt #'}</th>
                         <th>${isRTL ? 'التاريخ' : 'Date'}</th>
                         <th>${isRTL ? 'العميل' : 'Customer'}</th>
@@ -269,8 +282,9 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                     </tr>
                 </thead>
                 <tbody>
-                    ${filteredInvoices.map(inv => `
+                    ${filteredInvoices.map((inv, index) => `
                         <tr>
+                            <td>${index + 1}</td>
                             <td>${inv.number}</td>
                             <td>${inv.date}</td>
                             <td>${inv.contactName}</td>
@@ -281,7 +295,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
-                        <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي الكلي' : 'Grand Total'}</td>
+                        <td colspan="4" style="text-align: center;">${isRTL ? 'الإجمالي الكلي' : 'Grand Total'}</td>
                         <td>${totalSum.toLocaleString()}</td>
                         <td></td>
                     </tr>
@@ -423,6 +437,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                 <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 sticky top-0 z-10 shadow-sm">
                         <tr>
+                            <th className="px-6 py-3 w-16">{isRTL ? 'الكود' : 'Code'}</th>
                             <th className="px-6 py-3">{isRTL ? 'الإيصال' : 'Receipt'}</th>
                             <th className="px-6 py-3">{isRTL ? 'التاريخ' : 'Date'}</th>
                             <th className="px-6 py-3">{isRTL ? 'العميل' : 'Customer'}</th>
@@ -431,8 +446,11 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {filteredInvoices.map(inv => (
+                        {filteredInvoices.map((inv, index) => (
                             <tr key={inv.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${inv.status === 'cancelled' ? 'opacity-50 bg-red-50 dark:bg-red-900/10' : ''}`}>
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                    {index + 1}
+                                </td>
                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                                     {inv.number}
                                     {inv.status === 'cancelled' && <span className="text-xs text-red-500 mx-2">({isRTL ? 'ملغي' : 'Cancelled'})</span>}
@@ -468,7 +486,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                             </tr>
                         ))}
                          {filteredInvoices.length === 0 && (
-                            <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">{isRTL ? 'لا توجد إيصالات' : 'No receipts found'}</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">{isRTL ? 'لا توجد إيصالات' : 'No receipts found'}</td></tr>
                         )}
                     </tbody>
                 </table>

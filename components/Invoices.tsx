@@ -45,11 +45,23 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
     currentLineItem: { productId: '', quantity: 1, price: 0, discount: 0 }
   });
 
-  const filteredInvoices = invoices.filter(inv => 
-    (inv.number.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    inv.contactName.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    inv.type === type
-  );
+  // Filter AND Sort Invoices (Newest First)
+  const filteredInvoices = invoices
+    .filter(inv => 
+      (inv.number.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      inv.contactName.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      inv.type === type
+    )
+    .sort((a, b) => {
+        // Sort by Date (Descending)
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateB !== dateA) {
+            return dateB - dateA;
+        }
+        // If same date, sort by Number (Descending) to get newest created first
+        return b.number.localeCompare(a.number);
+    });
 
   // Calculate Screen Totals
   const totalAmount = filteredInvoices.reduce((sum, i) => sum + i.total, 0);
@@ -236,6 +248,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
           <table>
               <thead>
                   <tr>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
                       <th>${isRTL ? 'رقم الفاتورة' : 'Invoice #'}</th>
                       <th>${contactLabel}</th>
                       <th>${isRTL ? 'التاريخ' : 'Date'}</th>
@@ -247,10 +260,11 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                   </tr>
               </thead>
               <tbody>
-                  ${filteredInvoices.map(inv => {
+                  ${filteredInvoices.map((inv, index) => {
                       const totalQty = inv.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
                       return `
                       <tr>
+                          <td>${index + 1}</td>
                           <td>${inv.number}</td>
                           <td>${inv.contactName}</td>
                           <td>${inv.date}</td>
@@ -269,7 +283,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
               </tbody>
               <tfoot>
                   <tr class="total-row">
-                      <td colspan="3" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                      <td colspan="4" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
                       <td>${totalQuantityAll}</td>
                       <td>${totalAmount.toLocaleString()} ${currencySymbol}</td>
                       <td style="color: green;">${totalPaid.toLocaleString()} ${currencySymbol}</td>
@@ -480,6 +494,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
         <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
             <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold sticky top-0">
                 <tr>
+                    <th scope="col" className="px-6 py-4 text-start w-16">{isRTL ? 'الكود' : 'Code'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'رقم الفاتورة' : 'Invoice #'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{contactLabel}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'التاريخ' : 'Date'}</th>
@@ -492,10 +507,13 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {filteredInvoices.map((invoice) => {
+                {filteredInvoices.map((invoice, index) => {
                     const totalQty = invoice.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
                     return (
                     <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-start">
+                            {index + 1}
+                        </td>
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                             {invoice.number}
                         </td>
@@ -561,7 +579,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 )})}
                 {filteredInvoices.length === 0 && (
                     <tr>
-                        <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
+                        <td colSpan={10} className="px-6 py-8 text-center text-gray-400">
                             {isRTL ? 'لا توجد فواتير' : 'No invoices found'}
                         </td>
                     </tr>
@@ -570,7 +588,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
             {/* Table Footer with Summaries */}
             <tfoot className="bg-gray-50 dark:bg-gray-900/50 font-bold border-t border-gray-200 dark:border-gray-700 sticky bottom-0">
                  <tr>
-                    <td colSpan={3} className="px-6 py-4 text-end font-bold">{isRTL ? 'الإجمالي' : 'Total'}</td>
+                    <td colSpan={4} className="px-6 py-4 text-end font-bold">{isRTL ? 'الإجمالي' : 'Total'}</td>
                     <td className="px-6 py-4 text-center font-bold bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-300">
                         {totalQuantity}
                     </td>

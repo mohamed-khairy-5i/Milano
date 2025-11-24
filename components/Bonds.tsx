@@ -157,6 +157,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
           <table>
               <thead>
                   <tr>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
                       <th>${isRTL ? 'رقم السند' : 'Bond #'}</th>
                       <th>${isRTL ? 'التاريخ' : 'Date'}</th>
                       <th>${isRTL ? 'الجهة' : 'Entity'}</th>
@@ -166,8 +167,9 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                   </tr>
               </thead>
               <tbody>
-                  ${filteredBonds.map(bond => `
+                  ${filteredBonds.map((bond, index) => `
                       <tr>
+                          <td>${index + 1}</td>
                           <td>${bond.number}</td>
                           <td>${bond.date}</td>
                           <td>${bond.entityName}</td>
@@ -181,17 +183,17 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
               </tbody>
               <tfoot>
                   <tr class="total-row">
-                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي القبض' : 'Total Receipts'}</td>
+                      <td colspan="5" style="text-align: center;">${isRTL ? 'إجمالي القبض' : 'Total Receipts'}</td>
                       <td style="color: green;">${totalReceipts.toLocaleString()} ${currencySymbol}</td>
                       <td></td>
                   </tr>
                    <tr class="total-row">
-                      <td colspan="4" style="text-align: center;">${isRTL ? 'إجمالي الصرف' : 'Total Payments'}</td>
+                      <td colspan="5" style="text-align: center;">${isRTL ? 'إجمالي الصرف' : 'Total Payments'}</td>
                       <td style="color: red;">${totalPayments.toLocaleString()} ${currencySymbol}</td>
                       <td></td>
                   </tr>
                    <tr class="total-row" style="background: #e5e7eb; border-top: 2px solid #ccc;">
-                      <td colspan="4" style="text-align: center;">${isRTL ? 'صافي الحركة' : 'Net Movement'}</td>
+                      <td colspan="5" style="text-align: center;">${isRTL ? 'صافي الحركة' : 'Net Movement'}</td>
                       <td style="color: ${netTotal >= 0 ? 'blue' : 'orange'};">${netTotal.toLocaleString()} ${currencySymbol}</td>
                       <td></td>
                   </tr>
@@ -363,6 +365,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
         <table className="w-full text-sm text-left rtl:text-right text-gray-600 dark:text-gray-300">
             <thead className="text-xs text-gray-700 uppercase bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 font-bold">
                 <tr>
+                    <th scope="col" className="px-6 py-4 text-start w-16">{isRTL ? 'الكود' : 'Code'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'رقم السند' : 'Bond #'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'نوع السند' : 'Type'}</th>
                     <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'التاريخ' : 'Date'}</th>
@@ -373,8 +376,11 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {filteredBonds.map((bond) => (
+                {filteredBonds.map((bond, index) => (
                     <tr key={bond.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-start">
+                            {index + 1}
+                        </td>
                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
                             {bond.number}
                         </td>
@@ -436,7 +442,7 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
                 ))}
                 {filteredBonds.length === 0 && (
                     <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                        <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                             {isRTL ? 'لا توجد سندات' : 'No bonds found'}
                         </td>
                     </tr>

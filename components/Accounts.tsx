@@ -367,7 +367,16 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       );
   };
 
-  const renderChartOfAccounts = () => (
+  const renderChartOfAccounts = () => {
+      const typeLabels: Record<string, string> = {
+          'asset': isRTL ? 'أصول' : 'Asset',
+          'liability': isRTL ? 'خصوم' : 'Liability',
+          'equity': isRTL ? 'حقوق ملكية' : 'Equity',
+          'revenue': isRTL ? 'إيرادات' : 'Revenue',
+          'expense': isRTL ? 'مصروفات' : 'Expense'
+      };
+
+      return (
       <div className="space-y-6 animate-fade-in">
           <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">{isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</h2>
@@ -409,7 +418,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                                       acc.type === 'equity' ? 'bg-blue-100 text-blue-800' :
                                       acc.type === 'revenue' ? 'bg-indigo-100 text-indigo-800' : 'bg-orange-100 text-orange-800'
                                     }`}>
-                                      {acc.type.toUpperCase()}
+                                      {typeLabels[acc.type] || acc.type}
                                   </span>
                               </td>
                               <td className="px-6 py-3 text-center">
@@ -448,7 +457,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
               </table>
           </div>
       </div>
-  );
+  )};
 
   const renderOpeningBalances = () => (
       <div className="space-y-6 animate-fade-in">
@@ -750,7 +759,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
                        <p className="text-2xl font-bold text-red-800 dark:text-red-100">{expense.toLocaleString()} {currencyLabel}</p>
                    </div>
                    <div className={`${netIncome >= 0 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-800'} p-6 rounded-xl border text-center`}>
-                       <h4 className="text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">{isRTL ? 'صافي الربح/الخسارة' : 'Net Profit/Loss'}</h4>
+                       <h4 className="text-sm font-bold mb-2 text-gray-700 dark:text-gray-300">{isRTL ? 'صافي الربح/خسارة' : 'Net Profit/Loss'}</h4>
                        <p className={`text-2xl font-bold ${netIncome >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
                            {netIncome.toLocaleString()} {currencyLabel}
                        </p>

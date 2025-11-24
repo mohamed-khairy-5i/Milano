@@ -23,6 +23,11 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
     p.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate Totals
+  const totalStock = filteredProducts.reduce((sum, p) => sum + p.stock, 0);
+  const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
+  const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
+
   const handleOpenAdd = () => {
     setCurrentProduct({
       code: '',
@@ -86,6 +91,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
     
     const direction = isRTL ? 'rtl' : 'ltr';
     const textAlign = isRTL ? 'right' : 'left';
+    const currencyLabel = currency;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -101,6 +107,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
               td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
               .img-box { width: 40px; height: 40px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
               .img-box img { width: 100%; height: 100%; object-fit: cover; }
+              .footer-row { font-weight: bold; background-color: #f9fafb; border-top: 2px solid #ccc; }
               @media print { .print-btn { display: none; } }
           </style>
       </head>
@@ -114,7 +121,8 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                       <th>${isRTL ? 'الاسم' : 'Name'}</th>
                       <th>${isRTL ? 'الفئة' : 'Category'}</th>
                       <th>${isRTL ? 'الكمية' : 'Stock'}</th>
-                      <th>${isRTL ? 'سعر البيع' : 'Price'}</th>
+                      <th>${isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
+                      <th>${isRTL ? 'إجمالي البيع' : 'Total Sell'}</th>
                   </tr>
               </thead>
               <tbody>
@@ -126,13 +134,25 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                             </div>
                           </td>
                           <td>${p.code}</td>
-                          <td>${p.name}</td>
+                          <td>
+                              <div style="font-weight: bold;">${p.name}</div>
+                              ${p.description ? `<div style="font-size: 10px; color: #666; margin-top: 2px;">${p.description}</div>` : ''}
+                          </td>
                           <td>${p.category}</td>
                           <td>${p.stock}</td>
-                          <td>${p.priceSell.toLocaleString()}</td>
+                          <td>${(p.stock * p.priceBuy).toLocaleString()}</td>
+                          <td>${(p.stock * p.priceSell).toLocaleString()}</td>
                       </tr>
                   `).join('')}
               </tbody>
+              <tfoot>
+                <tr class="footer-row">
+                    <td colspan="4" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                    <td>${totalStock}</td>
+                    <td>${totalCostValue.toLocaleString()} ${currencyLabel}</td>
+                    <td>${totalSellValue.toLocaleString()} ${currencyLabel}</td>
+                </tr>
+              </tfoot>
           </table>
           <script>window.print();</script>
       </body>
@@ -264,8 +284,11 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                             </div>
                         </td>
                         <td className="px-6 py-4 text-end">{product.code}</td>
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-white text-end">
-                            {product.name}
+                        <td className="px-6 py-4 text-end">
+                            <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
+                            {product.description && (
+                                <div className="text-xs text-gray-500 mt-1 font-normal">{product.description}</div>
+                            )}
                         </td>
                         <td className="px-6 py-4 text-end">
                             {product.category}
@@ -307,6 +330,22 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                     </tr>
                 )}
             </tbody>
+            {/* Table Footer */}
+            <tfoot className="bg-gray-50 dark:bg-gray-900/50 font-bold border-t border-gray-200 dark:border-gray-700 sticky bottom-0">
+                 <tr>
+                    <td colSpan={4} className="px-6 py-4 text-end font-bold">{isRTL ? 'الإجمالي' : 'Total'}</td>
+                    <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                        {totalStock}
+                    </td>
+                    <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                        {formatCurrency(totalCostValue)}
+                    </td>
+                    <td className="px-6 py-4 text-end font-bold text-gray-900 dark:text-white">
+                         {formatCurrency(totalSellValue)}
+                    </td>
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
       </div>
 
@@ -456,11 +495,12 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
             </div>
 
             <div>
-                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'الوصف' : 'Description'}</label>
+                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'الوصف (المقاسات/الأحجام)' : 'Description (Sizes)'}</label>
                  <textarea 
                     rows={3}
                     value={currentProduct.description || ''}
                     onChange={e => setCurrentProduct({...currentProduct, description: e.target.value})}
+                    placeholder={isRTL ? 'مثال: S, M, L, XL' : 'e.g. S, M, L, XL'}
                     className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                 />
             </div>

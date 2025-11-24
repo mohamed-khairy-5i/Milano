@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { DollarSign, Plus, Calendar, Trash2, Edit, PieChart, Save, Printer } from 'lucide-react';
+import { DollarSign, Plus, Calendar, Trash2, Edit, PieChart, Save, Printer, Search } from 'lucide-react';
 import { useData } from '../DataContext';
 import { Expense } from '../types';
 import Modal from './Modal';
@@ -11,6 +11,7 @@ interface ExpensesProps {
 
 const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
   const { expenses, addExpense, updateExpense, deleteExpense, currency } = useData();
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,7 +26,27 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
   };
   const currencyLabel = currencyLabels[currency];
 
-  // Calculations
+  // Category Translation Helper
+  const getCategoryLabel = (cat: string) => {
+      const map: Record<string, string> = {
+          'Utilities': isRTL ? 'فواتير وخدمات' : 'Utilities',
+          'Rent': isRTL ? 'إيجار' : 'Rent',
+          'Salaries': isRTL ? 'رواتب' : 'Salaries',
+          'Maintenance': isRTL ? 'صيانة' : 'Maintenance',
+          'Other': isRTL ? 'أخرى' : 'Other'
+      };
+      return map[cat] || cat;
+  };
+
+  // Filter Expenses
+  const filteredExpenses = expenses.filter(e => 
+    e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getCategoryLabel(e.category).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.amount.toString().includes(searchTerm)
+  );
+
+  // Calculations based on filtered (or all) expenses? Usually stats are for ALL, list is filtered.
+  // Let's keep stats for ALL expenses for accuracy of "Total Expenses" regardless of search.
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
 
   // This Month Expenses
@@ -43,14 +64,15 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
       categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
   });
   
-  let topCategory = '-';
+  let topCategoryKey = '-';
   let topCategoryAmount = 0;
   Object.entries(categoryTotals).forEach(([cat, amount]) => {
       if (amount > topCategoryAmount) {
           topCategoryAmount = amount;
-          topCategory = cat;
+          topCategoryKey = cat;
       }
   });
+  const topCategoryLabel = getCategoryLabel(topCategoryKey);
 
   const handleOpenAdd = () => {
     setCurrentExpense({
@@ -119,6 +141,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
           <table>
               <thead>
                   <tr>
+                      <th>${isRTL ? 'الكود' : 'Code'}</th>
                       <th>${isRTL ? 'البند' : 'Title'}</th>
                       <th>${isRTL ? 'التصنيف' : 'Category'}</th>
                       <th>${isRTL ? 'التاريخ' : 'Date'}</th>
@@ -126,10 +149,11 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                   </tr>
               </thead>
               <tbody>
-                  ${expenses.map(e => `
+                  ${filteredExpenses.map((e, index) => `
                       <tr>
+                          <td>${index + 1}</td>
                           <td>${e.title}</td>
-                          <td>${e.category}</td>
+                          <td>${getCategoryLabel(e.category)}</td>
                           <td>${e.date}</td>
                           <td class="amount">${e.amount.toLocaleString()} ${currencyLabel}</td>
                       </tr>
@@ -137,7 +161,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
               </tbody>
               <tfoot>
                   <tr>
-                      <td colspan="3" style="text-align: center; font-weight: bold;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                      <td colspan="4" style="text-align: center; font-weight: bold;">${isRTL ? 'الإجمالي' : 'Total'}</td>
                       <td class="amount">${totalExpenses.toLocaleString()} ${currencyLabel}</td>
                   </tr>
               </tfoot>
@@ -185,7 +209,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
               
               <div class="row"><span class="label">${isRTL ? 'التاريخ' : 'Date'}</span><span class="value">${expense.date}</span></div>
               <div class="row"><span class="label">${isRTL ? 'البند / العنوان' : 'Title'}</span><span class="value">${expense.title}</span></div>
-              <div class="row"><span class="label">${isRTL ? 'التصنيف' : 'Category'}</span><span class="value">${expense.category}</span></div>
+              <div class="row"><span class="label">${isRTL ? 'التصنيف' : 'Category'}</span><span class="value">${getCategoryLabel(expense.category)}</span></div>
               ${expense.description ? `<div class="row"><span class="label">${isRTL ? 'الوصف' : 'Description'}</span><span class="value">${expense.description}</span></div>` : ''}
               
               <div class="amount-box">
@@ -242,7 +266,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
              <div className="flex justify-between items-start">
                 <div>
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{isRTL ? 'أعلى تصنيف' : 'Top Category'}</p>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{topCategory}</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{topCategoryLabel}</h3>
                 </div>
                 <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600">
                     <PieChart size={24} />
@@ -253,25 +277,42 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
 
       {/* List */}
       <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row gap-4 justify-between items-center">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                {isRTL ? 'سجل المصروفات' : 'Expense Log'}
             </h2>
-            <div className="flex gap-2">
-                <button 
-                    onClick={handlePrintList}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold"
-                >
-                    <Printer size={18} />
-                    <span className="hidden sm:inline">{isRTL ? 'طباعة' : 'Print'}</span>
-                </button>
-                <button 
-                    onClick={handleOpenAdd}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                >
-                    <Plus size={18} />
-                    <span>{isRTL ? 'مصروف جديد' : 'Add Expense'}</span>
-                </button>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+                {/* Search Bar */}
+                <div className="relative flex-1 sm:flex-none">
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
+                        <Search size={18} />
+                    </div>
+                    <input 
+                        type="text" 
+                        className="block w-full sm:w-64 p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                        placeholder={isRTL ? "بحث عن مصروف..." : "Search expenses..."}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handlePrintList}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-white rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shadow-sm text-sm font-bold"
+                    >
+                        <Printer size={18} />
+                        <span className="hidden sm:inline">{isRTL ? 'طباعة' : 'Print'}</span>
+                    </button>
+                    <button 
+                        onClick={handleOpenAdd}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap"
+                    >
+                        <Plus size={18} />
+                        <span>{isRTL ? 'مصروف جديد' : 'Add Expense'}</span>
+                    </button>
+                </div>
             </div>
          </div>
          
@@ -279,6 +320,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
             <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
                 <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400 sticky top-0">
                     <tr>
+                        <th scope="col" className="px-6 py-3 w-16">{isRTL ? 'الكود' : 'Code'}</th>
                         <th scope="col" className="px-6 py-3">{isRTL ? 'البند' : 'Title'}</th>
                         <th scope="col" className="px-6 py-3">{isRTL ? 'التصنيف' : 'Category'}</th>
                         <th scope="col" className="px-6 py-3">{isRTL ? 'التاريخ' : 'Date'}</th>
@@ -287,10 +329,11 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {expenses.map((expense) => (
+                    {filteredExpenses.map((expense, index) => (
                         <tr key={expense.id} className="bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors">
+                            <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{index + 1}</td>
                             <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{expense.title}</td>
-                            <td className="px-6 py-4">{expense.category}</td>
+                            <td className="px-6 py-4">{getCategoryLabel(expense.category)}</td>
                             <td className="px-6 py-4">{expense.date}</td>
                             <td className="px-6 py-4 font-bold">{expense.amount.toLocaleString()} {currencyLabel}</td>
                             <td className="px-6 py-4 text-center">
@@ -317,9 +360,9 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                             </td>
                         </tr>
                     ))}
-                    {expenses.length === 0 && (
+                    {filteredExpenses.length === 0 && (
                          <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                            <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
                                 {isRTL ? 'لا توجد مصروفات' : 'No expenses found'}
                             </td>
                         </tr>
@@ -385,7 +428,7 @@ const Expenses: React.FC<ExpensesProps> = ({ isRTL }) => {
                     className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                 >
                     <option value="">{isRTL ? 'اختر تصنيف' : 'Select Category'}</option>
-                    <option value="Utilities">{isRTL ? 'فواتير' : 'Utilities'}</option>
+                    <option value="Utilities">{isRTL ? 'فواتير وخدمات' : 'Utilities'}</option>
                     <option value="Rent">{isRTL ? 'إيجار' : 'Rent'}</option>
                     <option value="Salaries">{isRTL ? 'رواتب' : 'Salaries'}</option>
                     <option value="Maintenance">{isRTL ? 'صيانة' : 'Maintenance'}</option>

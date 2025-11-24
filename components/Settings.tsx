@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX, Edit } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX, Edit, UserPlus, Server } from 'lucide-react';
 import { useData } from '../DataContext';
 import { User as UserType, UserPermissions } from '../types';
 import Modal from './Modal';
@@ -10,7 +10,7 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
-  const { currency, setCurrency, resetData, users, currentUser, addEmployee, updateUser, deleteUser, storeName, updateStoreSettings } = useData();
+  const { currency, setCurrency, resetData, users, currentUser, addEmployee, updateUser, deleteUser, storeName, updateStoreSettings, registerStore } = useData();
   const [activeTab, setActiveTab] = useState('general');
   const [isResetting, setIsResetting] = useState(false);
 
@@ -45,11 +45,22 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
     }
   });
 
+  // New Store Registration State
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [newStoreData, setNewStoreData] = useState({
+      name: '',
+      adminName: '',
+      username: '',
+      password: '',
+      confirmPassword: ''
+  });
+
   const tabs = [
     { id: 'general', label: isRTL ? 'عام' : 'General', icon: Building },
     { id: 'users', label: isRTL ? 'المستخدمين والصلاحيات' : 'Users & Permissions', icon: User },
     { id: 'currencies', label: isRTL ? 'العملات' : 'Currencies', icon: Globe },
     { id: 'backup', label: isRTL ? 'النسخ الاحتياطي' : 'Backup', icon: Database },
+    { id: 'system', label: isRTL ? 'إدارة النظام' : 'System Admin', icon: Server },
   ];
 
   const handleSaveGeneral = async () => {
@@ -181,6 +192,33 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
       }
       if (confirm(isRTL ? 'هل أنت متأكد من حذف هذا المستخدم؟ لن يتمكن من الدخول مرة أخرى.' : 'Are you sure? This user will not be able to login again.')) {
           await deleteUser(id);
+      }
+  };
+
+  // Handle creating a completely new store
+  const handleCreateStore = async () => {
+      if (!newStoreData.name || !newStoreData.adminName || !newStoreData.username || !newStoreData.password) {
+          alert(isRTL ? 'جميع الحقول مطلوبة' : 'All fields are required');
+          return;
+      }
+      if (newStoreData.password !== newStoreData.confirmPassword) {
+          alert(isRTL ? 'كلمات المرور غير متطابقة' : 'Passwords do not match');
+          return;
+      }
+
+      const result = await registerStore({
+          name: newStoreData.adminName,
+          username: newStoreData.username,
+          password: newStoreData.password,
+          role: 'admin'
+      });
+
+      if (result.success) {
+          alert(isRTL ? 'تم إنشاء المتجر الجديد بنجاح! يرجى تسجيل الخروج والدخول بالحساب الجديد.' : 'New store created successfully! Please logout and login with the new account.');
+          setIsStoreModalOpen(false);
+          setNewStoreData({ name: '', adminName: '', username: '', password: '', confirmPassword: '' });
+      } else {
+          alert(result.message);
       }
   };
 
@@ -382,6 +420,34 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
             </div>
         )}
 
+        {/* System Admin Settings (New Store) */}
+        {activeTab === 'system' && (
+             <div className="space-y-6 max-w-2xl animate-fade-in">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 dark:border-gray-700">
+                    {isRTL ? 'إدارة النظام' : 'System Management'}
+                </h3>
+                
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg text-blue-600 dark:text-blue-300">
+                            <UserPlus size={24} />
+                        </div>
+                        <div>
+                             <h4 className="font-semibold text-gray-900 dark:text-white">{isRTL ? 'إنشاء متجر جديد' : 'Create New Store'}</h4>
+                             <p className="text-sm text-gray-500">{isRTL ? 'إنشاء قاعدة بيانات جديدة وحساب مدير مستقل (منفصل تماماً عن هذا المتجر).' : 'Create a completely new store database and admin account.'}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setIsStoreModalOpen(true)}
+                        className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-bold flex justify-center items-center gap-2"
+                    >
+                        <Plus size={16} />
+                        {isRTL ? 'إنشاء متجر جديد' : 'Create New Store'}
+                    </button>
+                </div>
+            </div>
+        )}
+
       </div>
 
       {/* Add/Edit User Modal */}
@@ -499,6 +565,81 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                           <span>{isRTL ? 'الإعدادات وإدارة الموظفين (Admin)' : 'Settings & User Management'}</span>
                       </label>
                   </div>
+              </div>
+          </div>
+      </Modal>
+
+      {/* Create New Store Modal */}
+      <Modal
+        isOpen={isStoreModalOpen}
+        onClose={() => setIsStoreModalOpen(false)}
+        title={isRTL ? 'إنشاء متجر جديد (حساب مستقل)' : 'Create New Store (Fresh Account)'}
+        isRTL={isRTL}
+        footer={
+            <>
+                <button onClick={() => setIsStoreModalOpen(false)} className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    {isRTL ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button onClick={handleCreateStore} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-bold">
+                    {isRTL ? 'إنشاء المتجر' : 'Create Store'}
+                </button>
+            </>
+        }
+      >
+          <div className="space-y-4">
+              <div className="p-3 bg-yellow-50 text-yellow-800 rounded-lg text-sm">
+                  {isRTL 
+                    ? 'تنبيه: سيقوم هذا بإنشاء متجر جديد تماماً بقاعدة بيانات منفصلة. يمكنك استخدام بيانات الدخول الجديدة لتسجيل الدخول.'
+                    : 'Note: This will create a completely fresh store with a separate database. You can use the new credentials to login.'
+                  }
+              </div>
+              <div>
+                  <label className="block text-sm font-medium mb-1">{isRTL ? 'اسم المتجر الجديد' : 'New Store Name'}</label>
+                  <input 
+                    type="text" 
+                    value={newStoreData.name} 
+                    onChange={e => setNewStoreData({...newStoreData, name: e.target.value})}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                    placeholder={isRTL ? 'مثال: متجر ميلانو 2' : 'e.g. Milano Branch 2'}
+                  />
+              </div>
+              <div>
+                  <label className="block text-sm font-medium mb-1">{isRTL ? 'اسم المدير الكامل' : 'Admin Full Name'}</label>
+                  <input 
+                    type="text" 
+                    value={newStoreData.adminName} 
+                    onChange={e => setNewStoreData({...newStoreData, adminName: e.target.value})}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-medium mb-1">{isRTL ? 'اسم المستخدم (للدخول)' : 'Username'}</label>
+                      <input 
+                        type="text" 
+                        value={newStoreData.username} 
+                        onChange={e => setNewStoreData({...newStoreData, username: e.target.value})}
+                        className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                      />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-medium mb-1">{isRTL ? 'كلمة المرور' : 'Password'}</label>
+                      <input 
+                        type="password" 
+                        value={newStoreData.password} 
+                        onChange={e => setNewStoreData({...newStoreData, password: e.target.value})}
+                        className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                      />
+                  </div>
+              </div>
+              <div>
+                  <label className="block text-sm font-medium mb-1">{isRTL ? 'تأكيد كلمة المرور' : 'Confirm Password'}</label>
+                  <input 
+                    type="password" 
+                    value={newStoreData.confirmPassword} 
+                    onChange={e => setNewStoreData({...newStoreData, confirmPassword: e.target.value})}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  />
               </div>
           </div>
       </Modal>
