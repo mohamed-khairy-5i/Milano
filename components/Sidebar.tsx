@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   LayoutDashboard, 
@@ -85,7 +84,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
         {/* Left Side Group */}
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : ''}`}>
              {/* Logo */}
-            <div className="flex items-center gap-2 font-bold text-2xl text-gray-800 dark:text-white">
+            <div className="flex items-center gap-2 font-bold text-xl text-gray-800 dark:text-white">
+                <img src="https://drive.google.com/uc?export=view&id=1tHpMsNDvoHpcQZj23a9uyLnLb2Ei6-3V" alt="Logo" className="w-8 h-8 object-contain" />
                 <span>{storeName}</span>
             </div>
             

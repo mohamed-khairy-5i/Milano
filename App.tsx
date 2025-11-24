@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sun, Moon, Globe, Menu, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
@@ -18,7 +17,7 @@ import { ViewState } from './types';
 import { useData, Currency } from './DataContext';
 
 const App: React.FC = () => {
-  const { currency, setCurrency, currentUser, logoutUser } = useData();
+  const { currency, setCurrency, currentUser, logoutUser, storeName } = useData();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isRTL, setIsRTL] = useState(true);
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
@@ -126,9 +125,12 @@ const App: React.FC = () => {
             >
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white hidden md:block">
-                {isRTL ? 'مرحباً بك' : 'Welcome'}
-            </h2>
+            <div className="hidden md:flex items-center gap-2">
+                <img src="https://drive.google.com/uc?export=view&id=1tHpMsNDvoHpcQZj23a9uyLnLb2Ei6-3V" alt="Logo" className="w-8 h-8 object-contain" />
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+                    {storeName}
+                </h2>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 md:gap-4">
