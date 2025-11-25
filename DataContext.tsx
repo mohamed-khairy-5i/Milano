@@ -357,12 +357,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        if (username === 'admin' && password === '123') {
+        // Updated default credentials
+        if (username === 'milano' && password === '737032191@@') {
             const dummyAdmin: User = {
                 id: 'legacy-admin',
                 name: 'مدير النظام',
-                username: 'admin',
-                password: '123',
+                username: 'milano',
+                password: '***',
                 role: 'admin',
                 storeId: 'main-store',
                 permissions: DEFAULT_PERMISSIONS,
