@@ -29,10 +29,12 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     notes: ''
   });
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products
+    .filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      p.code.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
 
   // Calculate Totals for Screen
   const totalStock = filteredProducts.reduce((sum, p) => sum + p.stock, 0);

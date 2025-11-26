@@ -18,9 +18,15 @@ import {
 
 export type Currency = 'YER' | 'SAR' | 'USD' | 'AED';
 
+export interface StoreSettings {
+  name: string;
+  address: string;
+  phone: string;
+}
+
 interface DataContextType {
   currentUser: User | null;
-  storeName: string;
+  storeSettings: StoreSettings; // Changed from storeName string to object
   products: Product[];
   contacts: Contact[];
   invoices: Invoice[];
@@ -39,7 +45,7 @@ interface DataContextType {
   deleteUser: (id: string) => Promise<void>;
   updateUser: (user: Partial<User> & { id: string }) => Promise<{ success: boolean; message?: string }>;
   
-  updateStoreSettings: (data: { name: string }) => Promise<void>;
+  updateStoreSettings: (data: Partial<StoreSettings>) => Promise<void>;
 
   addProduct: (product: Omit<Product, 'id' | 'storeId'>) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
@@ -174,7 +180,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   // Data State
-  const [storeName, setStoreName] = useState('Milano Store');
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>({
+    name: 'Milano Store',
+    address: '',
+    phone: ''
+  });
   const [products, setProducts] = useState<Product[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -206,7 +216,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } else {
       localStorage.removeItem('milano_user_session');
       // Clear data when logged out
-      setStoreName('Milano Store');
+      setStoreSettings({ name: 'Milano Store', address: '', phone: '' });
       setProducts([]);
       setContacts([]);
       setInvoices([]);
@@ -228,7 +238,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubStore = onSnapshot(doc(db, 'stores', storeId), (docSnapshot) => {
         if (docSnapshot.exists()) {
             const data = docSnapshot.data();
-            if (data.name) setStoreName(data.name);
+            setStoreSettings({
+              name: data.name || 'Milano Store',
+              address: data.address || '',
+              phone: data.phone || ''
+            });
         }
     });
 
@@ -294,7 +308,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await addDoc(collection(db, 'users'), newUser);
       
-      await setDoc(doc(db, 'stores', newStoreId), { name: 'Milano Store' });
+      await setDoc(doc(db, 'stores', newStoreId), { 
+        name: 'Milano Store',
+        address: '',
+        phone: ''
+      });
 
       const batch = writeBatch(db);
       DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
@@ -410,7 +428,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // --- DATA OPERATIONS ---
   
-  const updateStoreSettings = async (data: { name: string }) => {
+  const updateStoreSettings = async (data: Partial<StoreSettings>) => {
      if (!currentUser?.storeId) return;
      const storeId = currentUser.storeId;
      try {
@@ -499,7 +517,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <DataContext.Provider value={{
-      currentUser, storeName,
+      currentUser, storeSettings,
       products, contacts, invoices, expenses, bonds, accounts, currency, setCurrency,
       users, registerStore, addEmployee, loginUser, logoutUser, deleteUser, updateUser,
       updateStoreSettings,

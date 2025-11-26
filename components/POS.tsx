@@ -171,7 +171,7 @@ const POSDashboard: React.FC<{ isRTL: boolean; onViewChange: (v: POSView) => voi
 
 // --- 2. HISTORY COMPONENT ---
 const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, onBack }) => {
-    const { invoices, currency, storeName, deleteInvoice, updateInvoice, contacts, products } = useData();
+    const { invoices, currency, storeSettings, deleteInvoice, updateInvoice, contacts, products } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     
     // Edit Modal State
@@ -228,6 +228,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                 body { font-family: 'Cairo', monospace; padding: 10px 15px; width: 78mm; margin: 0 auto; font-size: 12px; }
                 .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
                 .store-name { font-weight: 900; font-size: 18px; margin: 0; text-transform: uppercase; }
+                .meta { font-size: 11px; margin-top: 4px; color: #333; }
                 table { width: 100%; border-collapse: collapse; }
                 th { text-align: ${isRTL ? 'right' : 'left'}; border-bottom: 1px solid #000; padding: 5px 0; font-size: 11px; }
                 td { border-bottom: 1px dashed #ddd; padding: 6px 0; vertical-align: top; }
@@ -242,8 +243,10 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
         <body>
              <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة' : 'Print'}</button>
              <div class="header">
-                <div class="store-name">${storeName}</div>
-                <div>#${invoice.number}</div>
+                <div class="store-name">${storeSettings.name}</div>
+                <div class="meta">${storeSettings.address}</div>
+                <div class="meta">${storeSettings.phone}</div>
+                <div style="margin-top: 10px;">#${invoice.number}</div>
                 <div>${invoice.date}</div>
              </div>
              <table>
@@ -698,7 +701,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
 
 // --- 3. TERMINAL COMPONENT (Original POS Logic) ---
 const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, onExit }) => {
-  const { products, currency, addInvoice, storeName, updateProduct } = useData();
+  const { products, currency, addInvoice, storeSettings, updateProduct } = useData();
   
   // Initialize cart from localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -893,7 +896,9 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
         <body>
              <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة الفاتورة' : 'Print Receipt'}</button>
              <div class="header">
-                <div class="store-name">${storeName}</div>
+                <div class="store-name">${storeSettings.name}</div>
+                <div class="meta">${storeSettings.address}</div>
+                <div class="meta">${storeSettings.phone}</div>
                 <div class="meta">${isRTL ? 'رقم الفاتورة' : 'Invoice'}: #${displayOrderNo}</div>
                 <div class="meta">${new Date().toLocaleString()}</div>
              </div>

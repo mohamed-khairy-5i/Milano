@@ -10,7 +10,7 @@ interface BondsProps {
 }
 
 const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
-  const { bonds, contacts, addBond, updateBond, deleteBond, currency: globalCurrency } = useData();
+  const { bonds, contacts, addBond, updateBond, deleteBond, currency: globalCurrency, storeSettings } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Edit State
@@ -279,8 +279,8 @@ const Bonds: React.FC<BondsProps> = ({ isRTL }) => {
               <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save as PDF'}</button>
               
               <div class="header">
-                  <div class="logo">Milano Store</div>
-                  <div>Main Street, City Center | +967 777 000 000</div>
+                  <div class="logo">${storeSettings.name}</div>
+                  <div>${storeSettings.address} | ${storeSettings.phone}</div>
               </div>
 
               <div style="text-align: center; margin-bottom: 30px;">

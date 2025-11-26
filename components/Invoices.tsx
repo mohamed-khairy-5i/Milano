@@ -11,7 +11,7 @@ interface InvoicesProps {
 }
 
 const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
-  const { invoices, contacts, products, addInvoice, updateInvoice, deleteInvoice, currency } = useData();
+  const { invoices, contacts, products, addInvoice, updateInvoice, deleteInvoice, currency, storeSettings } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Labels
@@ -363,7 +363,7 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save as PDF'}</button>
                 
                 <div class="header">
-                    <div class="logo">Milano Store</div>
+                    <div class="logo">${storeSettings.name}</div>
                     <div class="meta">
                         <div style="font-size: 20px; font-weight: bold; color: #111827;">${type === 'sale' ? (isRTL ? 'فاتورة مبيعات' : 'SALES INVOICE') : (isRTL ? 'فاتورة مشتريات' : 'PURCHASE INVOICE')}</div>
                         <div style="margin-top: 5px; color: #6b7280;"># ${invoice.number}</div>
@@ -374,9 +374,9 @@ const Invoices: React.FC<InvoicesProps> = ({ isRTL, type = 'sale' }) => {
                 <div class="info-grid">
                     <div class="info-box">
                         <div class="info-title">${isRTL ? 'من' : 'From'}</div>
-                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">Milano Store</div>
-                        <div style="color: #4b5563;">Main Street, City Center</div>
-                        <div style="color: #4b5563;">+967 777 000 000</div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${storeSettings.name}</div>
+                        <div style="color: #4b5563;">${storeSettings.address}</div>
+                        <div style="color: #4b5563;">${storeSettings.phone}</div>
                     </div>
                     <div class="info-box">
                         <div class="info-title">${isRTL ? 'إلى' : 'To'}</div>

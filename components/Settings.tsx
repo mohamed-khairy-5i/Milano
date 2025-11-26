@@ -10,16 +10,20 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
-  const { currency, setCurrency, resetData, users, currentUser, addEmployee, updateUser, deleteUser, storeName, updateStoreSettings, registerStore } = useData();
+  const { currency, setCurrency, resetData, users, currentUser, addEmployee, updateUser, deleteUser, storeSettings, updateStoreSettings, registerStore } = useData();
   const [activeTab, setActiveTab] = useState('general');
   const [isResetting, setIsResetting] = useState(false);
 
   // General Settings State
-  const [localStoreName, setLocalStoreName] = useState(storeName);
+  const [localStoreName, setLocalStoreName] = useState(storeSettings.name);
+  const [localAddress, setLocalAddress] = useState(storeSettings.address);
+  const [localPhone, setLocalPhone] = useState(storeSettings.phone);
 
   useEffect(() => {
-      setLocalStoreName(storeName);
-  }, [storeName]);
+      setLocalStoreName(storeSettings.name);
+      setLocalAddress(storeSettings.address);
+      setLocalPhone(storeSettings.phone);
+  }, [storeSettings]);
 
   // User Management State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -56,7 +60,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
   });
 
   const tabs = [
-    { id: 'general', label: isRTL ? 'عام' : 'General', icon: Building },
+    { id: 'general', label: isRTL ? 'بيانات المتجر' : 'Store Info', icon: Building },
     { id: 'users', label: isRTL ? 'المستخدمين والصلاحيات' : 'Users & Permissions', icon: User },
     { id: 'currencies', label: isRTL ? 'العملات' : 'Currencies', icon: Globe },
     { id: 'backup', label: isRTL ? 'النسخ الاحتياطي' : 'Backup', icon: Database },
@@ -65,7 +69,11 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
 
   const handleSaveGeneral = async () => {
       if (localStoreName.trim()) {
-          await updateStoreSettings({ name: localStoreName });
+          await updateStoreSettings({ 
+            name: localStoreName,
+            address: localAddress,
+            phone: localPhone
+          });
           alert(isRTL ? 'تم حفظ التغييرات بنجاح' : 'Settings saved successfully');
       }
   };
@@ -254,7 +262,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
         {activeTab === 'general' && (
             <div className="space-y-6 max-w-2xl animate-fade-in">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 dark:border-gray-700">
-                    {isRTL ? 'معلومات المتجر' : 'Store Information'}
+                    {isRTL ? 'معلومات المتجر (تظهر في الفواتير)' : 'Store Information (Shows on Invoices)'}
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
                     <div>
@@ -266,6 +274,30 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                             value={localStoreName}
                             onChange={(e) => setLocalStoreName(e.target.value)}
                             className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                            {isRTL ? 'العنوان' : 'Address'}
+                        </label>
+                        <input 
+                            type="text" 
+                            value={localAddress}
+                            onChange={(e) => setLocalAddress(e.target.value)}
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder={isRTL ? "مثال: شارع القاهرة، وسط البلد" : "e.g. Main St, Downtown"}
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                            {isRTL ? 'رقم الهاتف' : 'Phone Number'}
+                        </label>
+                        <input 
+                            type="text" 
+                            value={localPhone}
+                            onChange={(e) => setLocalPhone(e.target.value)}
+                            className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            placeholder={isRTL ? "مثال: 777000000" : "e.g. +967 777 000 000"} 
                         />
                     </div>
                 </div>

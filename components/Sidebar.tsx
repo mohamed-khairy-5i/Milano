@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   LayoutDashboard, 
@@ -32,7 +33,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCollapsed = false, toggleCollapse, onClose, onLogout }) => {
-  const { currentUser, storeName } = useData();
+  const { currentUser, storeSettings } = useData();
   const permissions = currentUser?.permissions;
 
   // Helper to check permission
@@ -85,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, isRTL, isCo
         <div className={`flex items-center gap-3 ${isCollapsed ? 'hidden' : ''}`}>
              {/* Logo - Removed as requested, only text remains */}
             <div className="flex items-center gap-2 font-bold text-xl text-gray-800 dark:text-white">
-                <span>{storeName}</span>
+                <span>{storeSettings.name}</span>
             </div>
             
             {/* Mobile Close Button */}
