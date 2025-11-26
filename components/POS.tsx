@@ -476,9 +476,9 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                         <tr>
                             <th className="px-6 py-3 w-16">{isRTL ? 'الكود' : 'Code'}</th>
                             <th className="px-6 py-3">{isRTL ? 'الإيصال' : 'Receipt'}</th>
+                            <th className="px-6 py-3">{isRTL ? 'المنتجات' : 'Products'}</th>
                             <th className="px-6 py-3">{isRTL ? 'التاريخ' : 'Date'}</th>
                             <th className="px-6 py-3">{isRTL ? 'العميل' : 'Customer'}</th>
-                            <th className="px-6 py-3">{isRTL ? 'المنتجات' : 'Products'}</th>
                             <th className="px-6 py-3">{isRTL ? 'المبلغ' : 'Amount'}</th>
                             <th className="px-6 py-3 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                         </tr>
@@ -493,14 +493,14 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                                     {inv.number}
                                     {inv.status === 'cancelled' && <span className="text-xs text-red-500 mx-2">({isRTL ? 'ملغي' : 'Cancelled'})</span>}
                                 </td>
+                                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 max-w-[200px] truncate" title={inv.items?.map(i => i.productName).join(', ')}>
+                                    {inv.items?.map(i => i.productName).join(', ') || '-'}
+                                </td>
                                 <td className="px-6 py-4">
                                     {inv.date}
                                     {inv.createdAt && <span className="block text-xs text-gray-400">{new Date(inv.createdAt).toLocaleTimeString(isRTL ? 'ar-EG' : 'en-US', {hour:'2-digit', minute:'2-digit'})}</span>}
                                 </td>
                                 <td className="px-6 py-4">{inv.contactName}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300 max-w-[200px] truncate" title={inv.items?.map(i => i.productName).join(', ')}>
-                                    {inv.items?.map(i => i.productName).join(', ') || '-'}
-                                </td>
                                 <td className="px-6 py-4 font-bold">{inv.total.toLocaleString()}</td>
                                 <td className="px-6 py-4 text-center">
                                     <div className="flex items-center justify-center gap-1">
