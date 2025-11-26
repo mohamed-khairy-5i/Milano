@@ -27,7 +27,7 @@ interface AccountsProps {
 type AccountView = 'menu' | 'treasury' | 'opening-balance' | 'ledger' | 'final-accounts' | 'chart-of-accounts';
 
 const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
-  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount, deleteAccount, storeName } = useData();
+  const { accounts, invoices, expenses, bonds, currency, updateAccount, addAccount, deleteAccount, storeSettings } = useData();
   const [currentView, setCurrentView] = useState<AccountView>('menu');
   
   // State for Sub-views
@@ -304,7 +304,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
       <body>
           <div class="header">
               <h2>${isRTL ? 'دليل الحسابات' : 'Chart of Accounts'}</h2>
-              <div>${storeName}</div>
+              <div>${storeSettings.name}</div>
           </div>
           <table>
               <thead>
@@ -665,7 +665,7 @@ const Accounts: React.FC<AccountsProps> = ({ isRTL }) => {
               <button class="print-btn" onclick="window.print()">${isRTL ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}</button>
               
               <div class="header">
-                  <div class="store-name">${storeName}</div>
+                  <div class="store-name">${storeSettings.name}</div>
                   <div class="title">${isRTL ? 'تقرير الحسابات الختامية والإقفال السنوي' : 'Final Accounts & Annual Closing Report'}</div>
                   <div class="date">${isRTL ? 'تاريخ التقرير' : 'Report Date'}: ${new Date().toLocaleDateString()}</div>
               </div>

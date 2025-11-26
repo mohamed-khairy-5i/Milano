@@ -15,7 +15,8 @@ import {
   FileText,
   BarChart3,
   Edit,
-  Save
+  Save,
+  ShoppingCart
 } from 'lucide-react';
 import { useData } from '../DataContext';
 import { Product, CartItem, Invoice } from '../types';
@@ -312,6 +313,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                     <tr>
                         <th>${isRTL ? 'الكود' : 'Code'}</th>
                         <th>${isRTL ? 'رقم الإيصال' : 'Receipt #'}</th>
+                        <th>${isRTL ? 'المنتجات' : 'Products'}</th>
                         <th>${isRTL ? 'التاريخ' : 'Date'}</th>
                         <th>${isRTL ? 'العميل' : 'Customer'}</th>
                         <th>${isRTL ? 'المبلغ' : 'Amount'}</th>
@@ -323,6 +325,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                         <tr>
                             <td>${index + 1}</td>
                             <td>${inv.number}</td>
+                            <td>${inv.items?.map(i => i.productName).join(', ') || '-'}</td>
                             <td>${inv.date}</td>
                             <td>${inv.contactName}</td>
                             <td>${inv.total.toLocaleString()}</td>
@@ -332,7 +335,7 @@ const POSHistory: React.FC<{ isRTL: boolean; onBack: () => void }> = ({ isRTL, o
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
-                        <td colspan="4" style="text-align: center;">${isRTL ? 'الإجمالي الكلي' : 'Grand Total'}</td>
+                        <td colspan="5" style="text-align: center;">${isRTL ? 'الإجمالي الكلي' : 'Grand Total'}</td>
                         <td>${totalSum.toLocaleString()}</td>
                         <td></td>
                     </tr>
@@ -1000,45 +1003,68 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar min-h-0">
             {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <Monitor size={48} className="mb-2 opacity-20" />
-                    <p>{isRTL ? 'ابدأ بمسح المنتجات' : 'Start scanning items'}</p>
+                    <ShoppingCart size={48} className="mb-2 opacity-20" />
+                    <p>{isRTL ? 'السلة فارغة' : 'Cart is empty'}</p>
                 </div>
             ) : (
                 cart.map(item => (
                     <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-100 dark:border-gray-700">
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1">
                             <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate">{item.name}</h4>
                             <div className="text-xs text-gray-500 mt-1">
                                 {item.priceSell.toLocaleString()} {currencyLabel} x {item.quantity}
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => updateQuantity(item.id, -1)} className="p-1 bg-white dark:bg-gray-700 rounded-md shadow-sm hover:text-red-500"><Minus size={14} /></button>
-                            <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, 1)} className="p-1 bg-white dark:bg-gray-700 rounded-md shadow-sm hover:text-green-500"><Plus size={14} /></button>
-                            <button onClick={() => removeFromCart(item.id)} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md ml-1"><Trash2 size={16} /></button>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => updateQuantity(item.id, -1)} className="p-1 bg-white dark:bg-gray-700 rounded-md shadow-sm hover:text-red-500">
+                                <Minus size={14} />
+                            </button>
+                            <span className="text-sm font-bold w-6 text-center dark:text-white">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, 1)} className="p-1 bg-white dark:bg-gray-700 rounded-md shadow-sm hover:text-green-500">
+                                <Plus size={14} />
+                            </button>
+                            <button onClick={() => removeFromCart(item.id)} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md ml-1">
+                                <Trash2 size={16} />
+                            </button>
                         </div>
                     </div>
                 ))
             )}
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 shrink-0">
+        {/* Totals & Buttons */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-b-xl shrink-0">
             <div className="space-y-2 text-sm mb-4">
-                <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2">
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>{isRTL ? 'المجموع الفرعي' : 'Subtotal'}</span>
+                    <span>{subTotal.toLocaleString()} {currencyLabel}</span>
+                </div>
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>{isRTL ? 'الضريبة (0%)' : 'Tax (0%)'}</span>
+                    <span>{tax.toLocaleString()} {currencyLabel}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-700">
                     <span>{isRTL ? 'الإجمالي' : 'Total'}</span>
                     <span>{total.toLocaleString()} {currencyLabel}</span>
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-                <button onClick={handlePay} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors font-bold text-sm sm:text-base">
-                    <CreditCard size={18} /> {isRTL ? 'دفع' : 'Pay'}
+
+            <div className="grid grid-cols-2 gap-2">
+                <button 
+                    onClick={handlePay}
+                    disabled={cart.length === 0}
+                    className="flex items-center justify-center gap-2 py-2.5 px-4 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <CreditCard size={18} />
+                    {isRTL ? 'دفع' : 'Pay Now'}
                 </button>
-                <button onClick={handleSave} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-bold text-sm sm:text-base">
-                    <Save size={18} /> {isRTL ? 'حفظ' : 'Save'}
-                </button>
-                <button onClick={() => handlePrint()} className="col-span-1 flex items-center justify-center gap-2 py-3 px-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 transition-colors font-bold">
-                    <Printer size={20} />
+                <button 
+                    onClick={handleSave}
+                    disabled={cart.length === 0}
+                    className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Save size={18} />
+                    {isRTL ? 'حفظ (تعليق)' : 'Save (Hold)'}
                 </button>
             </div>
         </div>
