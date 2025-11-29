@@ -41,6 +41,7 @@ export interface Product extends StoreData {
   image?: string;
   barcode?: string;
   description?: string;
+  warehouse?: string; // Added warehouse field
 }
 
 export interface Contact extends StoreData {

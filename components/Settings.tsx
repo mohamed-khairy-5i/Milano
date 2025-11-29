@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX, Edit, UserPlus, Server } from 'lucide-react';
+import { Save, Globe, Database, User, Shield, Building, Check, Trash2, RefreshCw, Plus, Lock, UserX, Edit, UserPlus, Server, Warehouse, Loader2 } from 'lucide-react';
 import { useData } from '../DataContext';
 import { User as UserType, UserPermissions } from '../types';
 import Modal from './Modal';
@@ -18,11 +18,17 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
   const [localStoreName, setLocalStoreName] = useState(storeSettings.name);
   const [localAddress, setLocalAddress] = useState(storeSettings.address);
   const [localPhone, setLocalPhone] = useState(storeSettings.phone);
+  
+  // Warehouses State
+  const [localWarehouses, setLocalWarehouses] = useState<string[]>(storeSettings.warehouses || ['المخزن الرئيسي']);
+  const [newWarehouse, setNewWarehouse] = useState('');
+  const [isAddingWarehouse, setIsAddingWarehouse] = useState(false);
 
   useEffect(() => {
       setLocalStoreName(storeSettings.name);
       setLocalAddress(storeSettings.address);
       setLocalPhone(storeSettings.phone);
+      setLocalWarehouses(storeSettings.warehouses || ['المخزن الرئيسي']);
   }, [storeSettings]);
 
   // User Management State
@@ -61,6 +67,7 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
 
   const tabs = [
     { id: 'general', label: isRTL ? 'بيانات المتجر' : 'Store Info', icon: Building },
+    { id: 'warehouses', label: isRTL ? 'المخازن' : 'Warehouses', icon: Warehouse },
     { id: 'users', label: isRTL ? 'المستخدمين والصلاحيات' : 'Users & Permissions', icon: User },
     { id: 'currencies', label: isRTL ? 'العملات' : 'Currencies', icon: Globe },
     { id: 'backup', label: isRTL ? 'النسخ الاحتياطي' : 'Backup', icon: Database },
@@ -76,6 +83,45 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
           });
           alert(isRTL ? 'تم حفظ التغييرات بنجاح' : 'Settings saved successfully');
       }
+  };
+  
+  const handleAddWarehouse = async () => {
+      if (!newWarehouse.trim()) return;
+      
+      setIsAddingWarehouse(true);
+      try {
+          const warehouseToAdd = newWarehouse.trim();
+          // Check for duplicates
+          if (localWarehouses.includes(warehouseToAdd)) {
+              alert(isRTL ? 'هذا المخزن موجود بالفعل' : 'Warehouse already exists');
+              setIsAddingWarehouse(false);
+              return;
+          }
+          const updatedWarehouses = [...localWarehouses, warehouseToAdd];
+          
+          // Optimistic update
+          setLocalWarehouses(updatedWarehouses);
+          setNewWarehouse('');
+          
+          await updateStoreSettings({ warehouses: updatedWarehouses });
+      } catch (error) {
+          console.error(error);
+          alert(isRTL ? 'حدث خطأ أثناء الإضافة' : 'Error adding warehouse');
+      } finally {
+          setIsAddingWarehouse(false);
+      }
+  };
+  
+  const handleRemoveWarehouse = async (warehouse: string) => {
+      if(warehouse === 'المخزن الرئيسي' || warehouse === 'Main Store') {
+          alert(isRTL ? 'لا يمكن حذف المخزن الرئيسي' : 'Cannot delete Main Store');
+          return;
+      }
+      if (!confirm(isRTL ? 'هل أنت متأكد من حذف هذا المخزن؟' : 'Are you sure you want to delete this warehouse?')) return;
+
+      const updatedWarehouses = localWarehouses.filter(w => w !== warehouse);
+      setLocalWarehouses(updatedWarehouses);
+      await updateStoreSettings({ warehouses: updatedWarehouses });
   };
 
   const handleClearData = async () => {
@@ -309,6 +355,60 @@ const Settings: React.FC<SettingsProps> = ({ isRTL }) => {
                         <Save size={18} />
                         <span>{isRTL ? 'حفظ التغييرات' : 'Save Changes'}</span>
                     </button>
+                </div>
+            </div>
+        )}
+        
+        {/* Warehouses Settings */}
+        {activeTab === 'warehouses' && (
+            <div className="space-y-6 max-w-2xl animate-fade-in">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white border-b pb-2 dark:border-gray-700">
+                    {isRTL ? 'إدارة المخازن' : 'Warehouses Management'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                    {isRTL ? 'أضف أسماء المخازن هنا لتظهر في قائمة الاختيار عند إضافة منتجات جديدة.' : 'Add warehouse names here to appear in the selection list when adding new products.'}
+                </p>
+                
+                <div className="flex gap-2 mb-4">
+                    <input 
+                        type="text" 
+                        value={newWarehouse}
+                        onChange={(e) => setNewWarehouse(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddWarehouse()}
+                        placeholder={isRTL ? 'اسم المخزن الجديد...' : 'New Warehouse Name...'}
+                        className="flex-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                    <button 
+                        type="button"
+                        onClick={handleAddWarehouse}
+                        disabled={!newWarehouse.trim() || isAddingWarehouse}
+                        className={`px-4 py-2 rounded-lg transition-colors flex items-center justify-center min-w-[3rem] ${
+                            !newWarehouse.trim() || isAddingWarehouse 
+                                ? 'bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed' 
+                                : 'bg-black text-white hover:bg-gray-800'
+                        }`}
+                        title={isRTL ? 'إضافة' : 'Add'}
+                    >
+                        {isAddingWarehouse ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
+                    </button>
+                </div>
+                
+                <div className="space-y-2">
+                    {localWarehouses.map((warehouse, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <span className="font-medium text-gray-800 dark:text-gray-200">{warehouse}</span>
+                            <button 
+                                onClick={() => handleRemoveWarehouse(warehouse)}
+                                className="text-red-500 hover:bg-red-100 p-1.5 rounded-md transition-colors"
+                                title={isRTL ? 'حذف' : 'Remove'}
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    ))}
+                    {localWarehouses.length === 0 && (
+                        <div className="text-center text-gray-400 py-4">{isRTL ? 'لا توجد مخازن مضافة' : 'No warehouses added'}</div>
+                    )}
                 </div>
             </div>
         )}

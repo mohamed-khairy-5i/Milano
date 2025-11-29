@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Edit, Trash2, Plus, Search, Upload, Image as ImageIcon, X, Printer } from 'lucide-react';
+import { Edit, Trash2, Plus, Search, Upload, Image as ImageIcon, X, Printer, Check } from 'lucide-react';
 import { Product } from '../types';
 import { useData } from '../DataContext';
 import Modal from './Modal';
@@ -10,13 +10,17 @@ interface InventoryProps {
 }
 
 const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
-  const { products, addProduct, updateProduct, deleteProduct, currency } = useData();
+  const { products, addProduct, updateProduct, deleteProduct, currency, storeSettings, updateStoreSettings } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Warehouse Add State
+  const [isAddingWarehouse, setIsAddingWarehouse] = useState(false);
+  const [newWarehouseName, setNewWarehouseName] = useState('');
 
   const filteredProducts = products
     .filter(p => 
@@ -30,15 +34,12 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
   const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceBuy), 0);
   const totalSellValue = filteredProducts.reduce((sum, p) => sum + (p.stock * p.priceSell), 0);
 
-  // Client requested totals for Unit Prices
-  const totalUnitCost = filteredProducts.reduce((sum, p) => sum + p.priceBuy, 0);
-  const totalUnitSell = filteredProducts.reduce((sum, p) => sum + p.priceSell, 0);
-
   const handleOpenAdd = () => {
     setCurrentProduct({
       code: '',
       name: '',
       category: '',
+      warehouse: isRTL ? 'المخزن الرئيسي' : 'Main Store',
       priceBuy: 0,
       priceSell: 0,
       stock: 0,
@@ -88,6 +89,21 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
     }
   };
 
+  const handleSaveNewWarehouse = async () => {
+    if (newWarehouseName && newWarehouseName.trim()) {
+      const newName = newWarehouseName.trim();
+      const currentWarehouses = storeSettings.warehouses || ['المخزن الرئيسي'];
+      
+      if (!currentWarehouses.includes(newName)) {
+        await updateStoreSettings({ warehouses: [...currentWarehouses, newName] });
+      }
+      
+      setCurrentProduct({ ...currentProduct, warehouse: newName });
+      setIsAddingWarehouse(false);
+      setNewWarehouseName('');
+    }
+  };
+
   const handlePrintList = () => {
     const printWindow = window.open('', '_blank', 'width=900,height=600');
     if (!printWindow) {
@@ -126,6 +142,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                       <th>${isRTL ? 'الكود' : 'Code'}</th>
                       <th>${isRTL ? 'الاسم' : 'Name'}</th>
                       <th>${isRTL ? 'الفئة' : 'Category'}</th>
+                      <th>${isRTL ? 'المخزن' : 'Warehouse'}</th>
                       <th>${isRTL ? 'الكمية' : 'Stock'}</th>
                       <th>${isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
                       <th>${isRTL ? 'إجمالي البيع' : 'Total Sell'}</th>
@@ -145,6 +162,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                               ${p.description ? `<div style="font-size: 10px; color: #666; margin-top: 2px;">${p.description}</div>` : ''}
                           </td>
                           <td>${p.category}</td>
+                          <td>${p.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store')}</td>
                           <td>${p.stock}</td>
                           <td>${(p.stock * p.priceBuy).toLocaleString()}</td>
                           <td>${(p.stock * p.priceSell).toLocaleString()}</td>
@@ -153,7 +171,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
               </tbody>
               <tfoot>
                 <tr class="footer-row">
-                    <td colspan="4" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
+                    <td colspan="5" style="text-align: center;">${isRTL ? 'الإجمالي' : 'Total'}</td>
                     <td>${totalStock}</td>
                     <td>${totalCostValue.toLocaleString()} ${currencyLabel}</td>
                     <td>${totalSellValue.toLocaleString()} ${currencyLabel}</td>
@@ -197,6 +215,7 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
               <h2>${product.name}</h2>
               <div class="code">${product.code}</div>
               
+              <div class="row"><span class="label">${isRTL ? 'المخزن' : 'Warehouse'}</span><span>${product.warehouse || '-'}</span></div>
               <div class="row"><span class="label">${isRTL ? 'الفئة' : 'Category'}</span><span>${product.category}</span></div>
               <div class="row"><span class="label">${isRTL ? 'الكمية' : 'Stock'}</span><span>${product.stock} ${product.unit}</span></div>
               <div class="row"><span class="label">${isRTL ? 'سعر التكلفة' : 'Cost'}</span><span>${product.priceBuy.toLocaleString()}</span></div>
@@ -220,6 +239,13 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
     };
     return `${val.toLocaleString()} ${currencyLabels[currency]}`;
   };
+
+  // Combine warehouses from settings and unique ones from products
+  const availableWarehouses = React.useMemo(() => {
+    const fromSettings = storeSettings.warehouses || ['المخزن الرئيسي'];
+    const fromProducts = new Set(products.map(p => p.warehouse).filter(Boolean));
+    return Array.from(new Set([...fromSettings, ...Array.from(fromProducts) as string[]]));
+  }, [storeSettings.warehouses, products]);
 
   return (
     <div className="bg-white dark:bg-gray-800 h-full flex flex-col">
@@ -498,6 +524,60 @@ const Inventory: React.FC<InventoryProps> = ({ isRTL }) => {
                         onChange={e => setCurrentProduct({...currentProduct, maxStock: Number(e.target.value)})}
                         className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                     />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'اسم المخزن' : 'Warehouse Name'}</label>
+                    
+                    {!isAddingWarehouse ? (
+                      <div className="flex gap-2">
+                          <input 
+                              list="warehouse-list"
+                              type="text" 
+                              value={currentProduct.warehouse || ''}
+                              onChange={e => setCurrentProduct({...currentProduct, warehouse: e.target.value})}
+                              className="w-full p-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
+                              placeholder={isRTL ? 'اختر مخزناً...' : 'Select warehouse...'}
+                          />
+                          <datalist id="warehouse-list">
+                              {availableWarehouses.map((w, index) => (
+                                  <option key={index} value={w} />
+                              ))}
+                          </datalist>
+                          <button 
+                              type="button"
+                              onClick={() => setIsAddingWarehouse(true)}
+                              className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white transition-colors"
+                              title={isRTL ? 'إضافة مخزن جديد' : 'Add new warehouse'}
+                          >
+                              <Plus size={20} />
+                          </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 animate-fade-in">
+                        <input 
+                            type="text"
+                            value={newWarehouseName}
+                            onChange={(e) => setNewWarehouseName(e.target.value)}
+                            placeholder={isRTL ? 'اكتب اسم المخزن الجديد...' : 'Enter new name...'}
+                            autoFocus
+                            className="w-full p-2 border border-blue-500 rounded-lg dark:bg-gray-700 dark:border-blue-500 dark:text-white"
+                        />
+                        <button 
+                            type="button"
+                            onClick={handleSaveNewWarehouse}
+                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        >
+                            <Check size={20} />
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => { setIsAddingWarehouse(false); setNewWarehouseName(''); }}
+                            className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                      </div>
+                    )}
                 </div>
             </div>
 

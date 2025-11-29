@@ -736,12 +736,13 @@ const POSTerminal: React.FC<{ isRTL: boolean; onExit: () => void }> = ({ isRTL, 
     localStorage.setItem('milano_pos_cart', JSON.stringify(cart));
   }, [cart]);
 
+  // Filter and SORT products
   useEffect(() => {
     if (products.length > 0) {
         const results = products.filter(product =>
             product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.code.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        ).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
         setFilteredProducts(results);
     } else {
         setFilteredProducts([]);

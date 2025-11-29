@@ -22,11 +22,12 @@ export interface StoreSettings {
   name: string;
   address: string;
   phone: string;
+  warehouses: string[]; // Added warehouses list
 }
 
 interface DataContextType {
   currentUser: User | null;
-  storeSettings: StoreSettings; // Changed from storeName string to object
+  storeSettings: StoreSettings; 
   products: Product[];
   contacts: Contact[];
   invoices: Invoice[];
@@ -37,7 +38,7 @@ interface DataContextType {
   setCurrency: (c: Currency) => void;
   
   // User Management
-  users: User[]; // List of employees for the current store
+  users: User[]; 
   registerStore: (user: Omit<User, 'id' | 'storeId' | 'permissions'>) => Promise<{ success: boolean; message?: string }>;
   addEmployee: (user: Omit<User, 'id' | 'storeId'>) => Promise<{ success: boolean; message?: string }>;
   loginUser: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
@@ -88,32 +89,23 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
 
 // --- DATA SANITIZATION UTILITIES ---
 
-/**
- * Recursively cleans Firestore data to ensure no circular References or complex objects
- * leak into the React State. This prevents JSON.stringify crashes.
- */
 const sanitizeFirestoreData = (data: any): any => {
   if (data === null || data === undefined) return data;
   
   if (typeof data !== 'object') return data;
 
-  // Handle Firestore Timestamp (duck typing)
   if (typeof data.toDate === 'function') {
     return data.toDate().toISOString();
   }
   
-  // Handle Firestore DocumentReference (The Circular Culprit)
-  // References have 'firestore' property which points back to app -> circular
   if (data.firestore && data.id) {
     return String(data.id); 
   }
 
-  // Handle Arrays
   if (Array.isArray(data)) {
     return data.map(sanitizeFirestoreData);
   }
 
-  // Handle Objects
   const cleanObj: any = {};
   for (const key in data) {
     if (Object.prototype.hasOwnProperty.call(data, key)) {
@@ -123,12 +115,10 @@ const sanitizeFirestoreData = (data: any): any => {
   return cleanObj;
 };
 
-// Helper to safely sanitize permissions
 const safePermissions = (perm: any): UserPermissions => {
   if (!perm) return DEFAULT_PERMISSIONS;
   return {
     canSell: !!perm.canSell,
-    // Default to canSell value if canManageInvoices is undefined (backward compatibility)
     canManageInvoices: perm.canManageInvoices !== undefined ? !!perm.canManageInvoices : !!perm.canSell,
     canManageStock: !!perm.canManageStock,
     canManageContacts: !!perm.canManageContacts,
@@ -138,7 +128,6 @@ const safePermissions = (perm: any): UserPermissions => {
   };
 };
 
-// Explicitly construct a safe User object with NO internal Firestore objects
 const sanitizeUser = (user: any): User => {
   if (!user) return null as any;
   const cleanData = sanitizeFirestoreData(user);
@@ -154,7 +143,6 @@ const sanitizeUser = (user: any): User => {
   };
 };
 
-// Default Accounts Template for new stores
 const DEFAULT_ACCOUNTS_TEMPLATE = [
   { code: '1001', name: 'الصندوق (النقدية)', type: 'asset', openingBalance: 0, systemAccount: true },
   { code: '1002', name: 'البنك', type: 'asset', openingBalance: 0, systemAccount: true },
@@ -168,7 +156,6 @@ const DEFAULT_ACCOUNTS_TEMPLATE = [
 ];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('milano_user_session');
     try {
@@ -179,11 +166,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   });
 
-  // Data State
   const [storeSettings, setStoreSettings] = useState<StoreSettings>({
     name: 'Milano Store',
     address: '',
-    phone: ''
+    phone: '',
+    warehouses: ['المخزن الرئيسي'] // Default warehouse
   });
   const [products, setProducts] = useState<Product[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -202,11 +189,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('milano_currency', c);
   };
 
-  // Persist User Session - PARANOID SANITIZATION
   useEffect(() => {
     if (currentUser) {
       try {
-        // Double ensure we are saving a clean object
         const safeUser: User = sanitizeUser(currentUser);
         localStorage.setItem('milano_user_session', JSON.stringify(safeUser));
       } catch (error) {
@@ -215,8 +200,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } else {
       localStorage.removeItem('milano_user_session');
-      // Clear data when logged out
-      setStoreSettings({ name: 'Milano Store', address: '', phone: '' });
+      setStoreSettings({ name: 'Milano Store', address: '', phone: '', warehouses: ['المخزن الرئيسي'] });
       setProducts([]);
       setContacts([]);
       setInvoices([]);
@@ -227,21 +211,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser]);
 
-  // --- FIRESTORE SUBSCRIPTIONS (Isolated by storeId) ---
-
   useEffect(() => {
     if (!currentUser?.storeId) return;
 
     const storeId = currentUser.storeId;
 
-    // Subscribe to Store Details
     const unsubStore = onSnapshot(doc(db, 'stores', storeId), (docSnapshot) => {
         if (docSnapshot.exists()) {
             const data = docSnapshot.data();
             setStoreSettings({
               name: data.name || 'Milano Store',
               address: data.address || '',
-              phone: data.phone || ''
+              phone: data.phone || '',
+              warehouses: data.warehouses || ['المخزن الرئيسي']
             });
         }
     });
@@ -250,14 +232,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const q = query(collection(db, collectionName), where('storeId', '==', storeId));
       return onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => {
-            // Get raw data and sanitize it immediately
             const rawData = doc.data();
             const cleanData = sanitizeFirestoreData(rawData);
-            
             return { 
                 id: doc.id, 
                 ...cleanData,
-                // Ensure ID fields are definitely strings
                 storeId: String(cleanData.storeId || ''),
             } as T;
         });
@@ -285,9 +264,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [currentUser]);
 
-
-  // --- AUTH & USER MANAGEMENT ---
-
   const registerStore = async (userData: Omit<User, 'id' | 'storeId' | 'permissions'>) => {
     try {
       const q = query(collection(db, 'users'), where('username', '==', userData.username));
@@ -311,7 +287,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await setDoc(doc(db, 'stores', newStoreId), { 
         name: 'Milano Store',
         address: '',
-        phone: ''
+        phone: '',
+        warehouses: ['المخزن الرئيسي']
       });
 
       const batch = writeBatch(db);
@@ -330,22 +307,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addEmployee = async (userData: Omit<User, 'id' | 'storeId'>) => {
     if (!currentUser) return { success: false, message: 'Not logged in' };
-    
     try {
         const q = query(collection(db, 'users'), where('username', '==', userData.username));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) {
             return { success: false, message: 'Username already exists' };
         }
-
         const storeId = currentUser.storeId;
-
         const newEmployee: Omit<User, 'id'> = {
             ...userData,
             storeId: storeId,
             createdAt: new Date().toISOString()
         };
-
         await addDoc(collection(db, 'users'), newEmployee);
         return { success: true };
     } catch (error) {
@@ -358,7 +331,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
           const { id, ...data } = userUpdates;
           await updateDoc(doc(db, 'users', id), data as any);
-          
           if (currentUser && currentUser.id === id) {
               setCurrentUser(prev => prev ? { ...prev, ...userUpdates } as User : null);
           }
@@ -375,7 +347,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        // Updated default credentials
         if (username === 'milano' && password === '737032191@@') {
             const dummyAdmin: User = {
                 id: 'legacy-admin',
@@ -421,32 +392,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const deleteUser = async (id: string) => {
-      try {
-          await deleteDoc(doc(db, 'users', id));
-      } catch (e) { console.error(e); }
+      try { await deleteDoc(doc(db, 'users', id)); } catch (e) { console.error(e); }
   };
-
-  // --- DATA OPERATIONS ---
   
   const updateStoreSettings = async (data: Partial<StoreSettings>) => {
      if (!currentUser?.storeId) return;
      const storeId = currentUser.storeId;
      try {
         await setDoc(doc(db, 'stores', storeId), data, { merge: true });
-     } catch(e) {
-        console.error(e);
-     }
+     } catch(e) { console.error(e); }
   };
 
   const addWithStoreId = async (collectionName: string, data: any) => {
       if (!currentUser?.storeId) return;
       const storeId = currentUser.storeId;
-      try {
-          await addDoc(collection(db, collectionName), { ...data, storeId });
-      } catch (e) { console.error(e); }
+      try { await addDoc(collection(db, collectionName), { ...data, storeId }); } catch (e) { console.error(e); }
   };
 
-  // Standard operations now return Promise<void> implcitly because of async
   const addProduct = async (product: Omit<Product, 'id' | 'storeId'>) => await addWithStoreId('products', product);
   const addContact = async (contact: Omit<Contact, 'id' | 'storeId'>) => await addWithStoreId('contacts', contact);
   const addInvoice = async (invoice: Omit<Invoice, 'id' | 'storeId'>) => await addWithStoreId('invoices', invoice);
@@ -454,61 +416,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addBond = async (bond: Omit<Bond, 'id' | 'storeId'>) => await addWithStoreId('bonds', bond);
   const addAccount = async (account: Omit<Account, 'id' | 'storeId'>) => await addWithStoreId('accounts', account);
 
-  // Updates & Deletes
-  const updateProduct = async (product: Product) => {
-    const { id, ...data } = product;
-    try { await updateDoc(doc(db, 'products', id), data as any); } catch(e) { console.error(e); }
-  };
+  const updateProduct = async (product: Product) => { const { id, ...data } = product; try { await updateDoc(doc(db, 'products', id), data as any); } catch(e) { console.error(e); } };
   const deleteProduct = async (id: string) => { try { await deleteDoc(doc(db, 'products', id)); } catch(e) {} };
-
   const updateContact = async (contact: Contact) => { const { id, ...data } = contact; try { await updateDoc(doc(db, 'contacts', id), data as any); } catch(e) {} };
   const deleteContact = async (id: string) => { try { await deleteDoc(doc(db, 'contacts', id)); } catch(e) {} };
-
   const updateInvoice = async (invoice: Invoice) => { const { id, ...data } = invoice; try { await updateDoc(doc(db, 'invoices', id), data as any); } catch(e) {} };
   const deleteInvoice = async (id: string) => { try { await deleteDoc(doc(db, 'invoices', id)); } catch(e) {} };
-
   const updateExpense = async (expense: Expense) => { const { id, ...data } = expense; try { await updateDoc(doc(db, 'expenses', id), data as any); } catch(e) {} };
   const deleteExpense = async (id: string) => { try { await deleteDoc(doc(db, 'expenses', id)); } catch(e) {} };
-
   const updateBond = async (bond: Bond) => { const { id, ...data } = bond; try { await updateDoc(doc(db, 'bonds', id), data as any); } catch(e) {} };
   const deleteBond = async (id: string) => { try { await deleteDoc(doc(db, 'bonds', id)); } catch(e) {} };
-
   const updateAccount = async (account: Account) => { const { id, ...data } = account; try { await updateDoc(doc(db, 'accounts', id), data as any); } catch(e) {} };
   const deleteAccount = async (id: string) => { try { await deleteDoc(doc(db, 'accounts', id)); } catch(e) {} };
 
-  // --- Reset Data ---
   const resetData = async () => {
     if (!currentUser?.storeId) return;
-    
     const storeId = currentUser.storeId;
     const collectionsToClear = ['products', 'contacts', 'invoices', 'expenses', 'bonds', 'accounts'];
-    
     try {
         const batch = writeBatch(db);
         let count = 0;
-
         for (const colName of collectionsToClear) {
             const q = query(collection(db, colName), where('storeId', '==', storeId));
             const snapshot = await getDocs(q);
-            
-            snapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-                count++;
-            });
+            snapshot.docs.forEach((doc) => { batch.delete(doc.ref); count++; });
         }
+        if (count > 0) await batch.commit();
         
-        if (count > 0) {
-            await batch.commit();
-        }
-        
-        // Re-seed accounts
         const newBatch = writeBatch(db);
         DEFAULT_ACCOUNTS_TEMPLATE.forEach(acc => {
             const docRef = doc(collection(db, 'accounts'));
             newBatch.set(docRef, { ...acc, storeId });
         });
         await newBatch.commit();
-        
     } catch (e) {
         console.error("Error clearing data:", e);
         throw e;

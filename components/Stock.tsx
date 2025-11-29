@@ -1,17 +1,19 @@
 
-import React, { useState } from 'react';
-import { RefreshCw, Search, Plus, ClipboardList, Package, Printer, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { RefreshCw, Search, Plus, ClipboardList, Package, Printer, Image as ImageIcon, Edit } from 'lucide-react';
 import { useData } from '../DataContext';
 import Modal from './Modal';
+import { Product } from '../types';
 
 interface StockProps {
   isRTL: boolean;
 }
 
 const Stock: React.FC<StockProps> = ({ isRTL }) => {
-  const { products, updateProduct, currency, invoices } = useData();
+  const { products, updateProduct, currency, invoices, storeSettings } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'current' | 'movement'>('current');
+  const [warehouseFilter, setWarehouseFilter] = useState('All');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,11 +31,26 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
     notes: ''
   });
 
+  // Get unique warehouses from both settings and products
+  const uniqueWarehouses = useMemo(() => {
+      const fromSettings = storeSettings.warehouses || ['المخزن الرئيسي'];
+      const fromProducts = new Set<string>();
+      products.forEach(p => {
+          if (p.warehouse) fromProducts.add(p.warehouse);
+      });
+      return Array.from(new Set([...fromSettings, ...Array.from(fromProducts)]));
+  }, [products, storeSettings.warehouses]);
+
   const filteredProducts = products
-    .filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.code.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            p.code.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const pWarehouse = p.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store');
+      const matchesWarehouse = warehouseFilter === 'All' || pWarehouse === warehouseFilter;
+
+      return matchesSearch && matchesWarehouse;
+    })
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' }));
 
   // Calculate Totals for Screen
@@ -67,6 +84,18 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
       quantity: 0,
       notes: ''
     });
+  };
+
+  const handleQuickEdit = (product: Product, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setAdjustment({
+        productId: product.id,
+        store: product.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store'),
+        type: 'increase',
+        quantity: 0,
+        notes: ''
+      });
+      setIsModalOpen(true);
   };
 
   const formatCurrency = (val: number) => {
@@ -166,12 +195,13 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
               </thead>
               <tbody>
                   ${filteredProducts.map(p => {
+                      const warehouseName = p.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store');
                       if (activeTab === 'current') {
                            return `
                             <tr>
                                 <td>${p.code}</td>
                                 <td>${p.name}</td>
-                                <td>${isRTL ? 'المخزن الرئيسي' : 'Main Store'}</td>
+                                <td>${warehouseName}</td>
                                 <td>${p.stock} ${p.unit}</td>
                                 <td>${p.priceBuy.toLocaleString()}</td>
                                 <td>${p.priceSell.toLocaleString()}</td>
@@ -285,19 +315,31 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
-         <div className="relative">
+      {/* Search and Filters */}
+      <div className="mb-4 flex flex-col md:flex-row gap-4">
+         <div className="relative flex-1">
             <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-gray-400">
                 <Search size={18} />
             </div>
             <input 
                 type="text" 
-                className="block w-full md:w-96 p-2.5 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                className="block w-full p-2.5 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
                 placeholder={isRTL ? "بحث في المخزون..." : "Search stock..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
+        </div>
+        <div className="w-full md:w-64">
+            <select
+                value={warehouseFilter}
+                onChange={(e) => setWarehouseFilter(e.target.value)}
+                className="block w-full p-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            >
+                <option value="All">{isRTL ? 'كل المخازن' : 'All Warehouses'}</option>
+                {uniqueWarehouses.map(w => (
+                     <option key={w} value={w}>{w}</option>
+                ))}
+            </select>
         </div>
       </div>
 
@@ -317,6 +359,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'سعر البيع' : 'Selling Price'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي التكلفة' : 'Total Cost'}</th>
                         <th scope="col" className="px-6 py-4 text-end">{isRTL ? 'إجمالي البيع' : 'Total Sell'}</th>
+                        <th scope="col" className="px-6 py-4 text-center">{isRTL ? 'إجراءات' : 'Actions'}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
@@ -327,7 +370,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                                 {product.name}
                             </td>
                             <td className="px-6 py-4 text-end">
-                                {isRTL ? 'المخزن الرئيسي' : 'Main Store'}
+                                {product.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store')}
                             </td>
                             <td className={`px-6 py-4 text-end font-bold ${product.stock <= product.minStock ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
                                 {product.stock} {product.unit}
@@ -344,11 +387,20 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                             <td className="px-6 py-4 text-end font-medium text-blue-600">
                                 {formatCurrency(product.stock * product.priceSell)}
                             </td>
+                            <td className="px-6 py-4 text-center">
+                                <button 
+                                    onClick={(e) => handleQuickEdit(product, e)}
+                                    className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded text-blue-600 transition-colors"
+                                    title={isRTL ? 'تعديل الكمية' : 'Edit Quantity'}
+                                >
+                                    <Edit size={16} />
+                                </button>
+                            </td>
                         </tr>
                     ))}
                     {filteredProducts.length === 0 && (
                         <tr>
-                            <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
+                            <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
                                 {isRTL ? 'لا توجد منتجات' : 'No products found'}
                             </td>
                         </tr>
@@ -372,6 +424,7 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                         <td className="px-6 py-4 text-end font-bold text-blue-600 dark:text-blue-400">
                              {formatCurrency(totalSellValue)}
                         </td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>
@@ -465,7 +518,14 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'المنتج' : 'Product'}</label>
                     <select 
                         value={adjustment.productId}
-                        onChange={e => setAdjustment({ ...adjustment, productId: e.target.value })}
+                        onChange={e => {
+                            const p = products.find(prod => prod.id === e.target.value);
+                            setAdjustment({ 
+                                ...adjustment, 
+                                productId: e.target.value,
+                                store: p?.warehouse || (isRTL ? 'المخزن الرئيسي' : 'Main Store')
+                            });
+                        }}
                         className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
                     >
                         <option value="">{isRTL ? 'اختر منتج' : 'Select Product'}</option>
@@ -476,13 +536,12 @@ const Stock: React.FC<StockProps> = ({ isRTL }) => {
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{isRTL ? 'المخزن' : 'Store'}</label>
-                    <select 
+                    <input 
+                        type="text" 
                         value={adjustment.store}
-                        onChange={e => setAdjustment({ ...adjustment, store: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-black focus:border-black"
-                    >
-                        <option value="المخزن الرئيسي">{isRTL ? 'المخزن الرئيسي' : 'Main Store'}</option>
-                    </select>
+                        readOnly
+                        className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-300 cursor-not-allowed"
+                    />
                 </div>
             </div>
 
